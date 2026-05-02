@@ -524,7 +524,7 @@ const VocabTooltip = ({ word, data, position, onClose }) => {
 // ═══════════════════════════════════════
 // HIGHLIGHTED TEXT
 // ═══════════════════════════════════════
-const HighlightedText = ({ content, vocabList }) => {
+const HighlightedText = ({ content, vocabList, dark: dk = false }) => {
   const [tooltip, setTooltip] = useState(null);
   const handleClick = useCallback((e, word, data) => {
     e.stopPropagation();
@@ -557,8 +557,8 @@ const HighlightedText = ({ content, vocabList }) => {
   return (
     <div onClick={() => setTooltip(null)}>
       {content.split("\n\n").map((p, i) => (
-        <p key={i} style={{ fontSize:18,lineHeight:1.85,marginBottom:24,color:"#2a2a2a",fontFamily:"'Source Serif 4','Georgia',serif",letterSpacing:"0.01em" }}>
-          {i===0 && <span style={{ float:"left",fontSize:58,lineHeight:"48px",paddingRight:8,paddingTop:6,fontFamily:"'Playfair Display',serif",fontWeight:900,color:"#1a1a1a" }}>{p.charAt(0)}</span>}
+        <p key={i} style={{ fontSize:18,lineHeight:1.85,marginBottom:24,color:dk?"#d4cfc8":"#2a2a2a",fontFamily:"'Source Serif 4','Georgia',serif",letterSpacing:"0.01em",transition:"color .3s" }}>
+          {i===0 && <span style={{ float:"left",fontSize:58,lineHeight:"48px",paddingRight:8,paddingTop:6,fontFamily:"'Playfair Display',serif",fontWeight:900,color:dk?"#f0ece4":"#1a1a1a",transition:"color .3s" }}>{p.charAt(0)}</span>}
           {renderP(i===0?p.slice(1):p, i)}
         </p>
       ))}
@@ -570,33 +570,40 @@ const HighlightedText = ({ content, vocabList }) => {
 // ═══════════════════════════════════════
 // READING QUIZ
 // ═══════════════════════════════════════
-const ReadingQuiz = ({ questions }) => {
+const ReadingQuiz = ({ questions, dark: dk = false }) => {
   const [answers, setAnswers] = useState({});
   const [submitted, setSubmitted] = useState(false);
   const sc = useMemo(() => submitted ? questions.reduce((a,q) => a+(answers[q.qid]===q.answer?1:0),0) : 0, [submitted, answers, questions]);
+  const qBg = dk ? "#1a1a1a" : "#f5f1ea";
+  const qBorder = dk ? "#2a2a2a" : "#e0d9cd";
+  const qTitle = dk ? "#f0ece4" : "#1a1a1a";
+  const qSub = dk ? "rgba(240,236,228,0.4)" : "#888";
+  const optBg = dk ? "#242424" : "#fff";
+  const optBorder = dk ? "#333" : "#d8d3c8";
+  const optColor = dk ? "#d4cfc8" : "#333";
 
   return (
-    <div style={{ background:"#f5f1ea",borderRadius:12,padding:"32px 28px",marginTop:48,border:"1px solid #e0d9cd" }}>
+    <div style={{ background:qBg,borderRadius:12,padding:"32px 28px",marginTop:48,border:`1px solid ${qBorder}`,transition:"background .3s" }}>
       <div style={{ display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:24 }}>
         <div>
-          <h3 style={{ fontFamily:"'Playfair Display',serif",fontSize:22,color:"#1a1a1a",margin:0 }}>Reading Comprehension Quiz</h3>
-          <p style={{ fontSize:13,color:"#888",margin:"4px 0 0",fontFamily:"'Source Sans 3',sans-serif" }}>Test your understanding of the article</p>
+          <h3 style={{ fontFamily:"'Playfair Display',serif",fontSize:22,color:qTitle,margin:0 }}>Reading Comprehension Quiz</h3>
+          <p style={{ fontSize:13,color:qSub,margin:"4px 0 0",fontFamily:"'Source Sans 3',sans-serif" }}>Test your understanding of the article</p>
         </div>
         {submitted && <div style={{ background:sc===questions.length?"#2d6a4f":sc>=questions.length/2?COLORS.gold:"#c1554d",color:"#fff",borderRadius:8,padding:"8px 16px",fontWeight:700,fontSize:14 }}>Score: {sc}/{questions.length}</div>}
       </div>
       {questions.map((q, qi) => (
-        <div key={q.qid} style={{ marginBottom:28,paddingBottom:24,borderBottom:qi<questions.length-1?"1px solid #ddd":"none" }}>
-          <p style={{ fontSize:15,fontWeight:600,color:"#1a1a1a",marginBottom:14,lineHeight:1.5,fontFamily:"'Source Sans 3',sans-serif" }}>
+        <div key={q.qid} style={{ marginBottom:28,paddingBottom:24,borderBottom:qi<questions.length-1?`1px solid ${qBorder}`:"none" }}>
+          <p style={{ fontSize:15,fontWeight:600,color:qTitle,marginBottom:14,lineHeight:1.5,fontFamily:"'Source Sans 3',sans-serif" }}>
             <span style={{ color:COLORS.gold,marginRight:8 }}>Q{qi+1}.</span>{q.question}
           </p>
           <div style={{ display:"flex",flexDirection:"column",gap:8 }}>
             {q.options.map((opt, oi) => {
               const isThis = answers[q.qid]===opt;
               const isAns = q.answer===opt;
-              let bg="#fff", border="1px solid #d8d3c8", color="#333";
+              let bg=optBg, border=`1px solid ${optBorder}`, color=optColor;
               if (submitted && isAns) { bg="#e6f4ea"; border="2px solid #2d6a4f"; color="#1b4332"; }
               else if (submitted && isThis && !isAns) { bg="#fce8e6"; border="2px solid #c1554d"; color="#7c2d12"; }
-              else if (isThis) { bg="#fef9ef"; border="2px solid "+COLORS.gold; color="#1a1a1a"; }
+              else if (isThis) { bg=dk?"#2a2000":"#fef9ef"; border="2px solid "+COLORS.gold; color=qTitle; }
               return (
                 <button key={oi} onClick={() => !submitted && setAnswers(p=>({...p,[q.qid]:opt}))}
                   style={{ background:bg,border,color,borderRadius:8,padding:"12px 16px",textAlign:"left",cursor:submitted?"default":"pointer",fontSize:14,lineHeight:1.45,fontFamily:"'Source Sans 3',sans-serif",transition:"all .15s" }}>
@@ -826,6 +833,7 @@ function ReadingModule({ onBack }) {
   const [selected, setSelected] = useState(new Set());
   const [editingCell, setEditingCell] = useState(null); // {id, field}
   const [editValue, setEditValue] = useState("");
+  const [dark, setDark] = useState(false);
 
   const levelColors = { A:"#2d6a4f", B:"#c9a84c", C:"#c1554d", D:"#6b21a8" };
   const levelLabels = { A:"Beginner", B:"Intermediate", C:"Advanced", D:"Expert" };
@@ -980,91 +988,159 @@ function ReadingModule({ onBack }) {
   if (article) {
     const vl = getVocab(article.id);
     const ql = getQuiz(article.id);
+    const artBg = dk ? "#111" : "#faf7f2";
+    const artNavBg = dk ? "rgba(17,17,17,0.97)" : "rgba(250,247,242,0.95)";
+    const artNavBorder = dk ? "#2a2a2a" : "#e0dcd5";
+    const artTextPrimary = dk ? "#f0ece4" : "#1a1a1a";
+    const artTextSecondary = dk ? "rgba(240,236,228,0.5)" : "#555";
+    const artBorderColor = dk ? "#333" : "#ddd";
+    const artBodyColor = dk ? "#d4cfc8" : "#2a2a2a";
+    const artHintBg = dk ? "rgba(201,168,76,0.1)" : "#f0ece4";
+    const artHintBorder = dk ? "#c9a84c" : "#c9a84c";
+    const artHintText = dk ? "#c9a84c" : "#6b5634";
+    const artVocabBg = dk ? "#1a1a1a" : "#fff";
+    const artVocabAltBg = dk ? "#222" : "#f9f6f0";
+    const artVocabBorder = dk ? "#2a2a2a" : "#e8e2d8";
+    const artVocabContextColor = dk ? "rgba(240,236,228,0.45)" : "#888";
     return (
-      <div style={{ minHeight:"100vh",background:"#faf7f2",fontFamily:"'Source Sans 3',sans-serif" }}>
-        <div style={{ position:"sticky",top:48,zIndex:100,background:"rgba(250,247,242,0.95)",backdropFilter:"blur(10px)",borderBottom:"1px solid #e0dcd5",padding:"12px 0" }}>
+      <div style={{ minHeight:"100vh", background:artBg, fontFamily:"'Source Sans 3',sans-serif", transition:"background .3s" }}>
+        <div style={{ position:"sticky",top:48,zIndex:100,background:artNavBg,backdropFilter:"blur(10px)",borderBottom:`1px solid ${artNavBorder}`,padding:"12px 0" }}>
           <div style={{ maxWidth:780,margin:"0 auto",padding:"0 24px",display:"flex",alignItems:"center",justifyContent:"space-between" }}>
             <button onClick={() => { setArticle(null); setArticleTab("read"); }} style={{ background:"none",border:"none",cursor:"pointer",fontSize:14,fontWeight:600,color:"#8b7355",fontFamily:"'Source Sans 3',sans-serif" }}>← Back</button>
-            <div style={{ display:"flex",gap:0,background:"#e8e2d8",borderRadius:8,padding:3 }}>
-              {[{id:"read",label:"Read",icon:"📖"},{id:"vocab",label:`Vocabulary (${vl.length})`,icon:"📝"},{id:"quiz",label:`Quiz (${ql.length})`,icon:"🧠"}].map(t=>(
-                <button key={t.id} onClick={()=>setArticleTab(t.id)} style={{ background:articleTab===t.id?"#fff":"transparent",border:"none",borderRadius:6,padding:"6px 14px",cursor:"pointer",fontSize:12,fontWeight:articleTab===t.id?700:500,color:articleTab===t.id?"#1a1a1a":"#888",fontFamily:"'Source Sans 3',sans-serif",boxShadow:articleTab===t.id?"0 1px 3px rgba(0,0,0,0.08)":"none",transition:"all .15s" }}>{t.icon} {t.label}</button>
-              ))}
+            <div style={{ display:"flex",gap:8,alignItems:"center" }}>
+              <button onClick={()=>setDark(d=>!d)} style={{ padding:"5px 12px",background:dk?"#2a2a2a":"#f0ece4",border:`1px solid ${dk?"#444":"#d8d3c8"}`,borderRadius:6,fontSize:12,cursor:"pointer",color:dk?"#e8c87a":"#8b7355",fontWeight:600,fontFamily:"'Source Sans 3',sans-serif" }}>{dk?"☀":"🌙"}</button>
+              <div style={{ display:"flex",gap:0,background:dk?"#2a2a2a":"#e8e2d8",borderRadius:8,padding:3 }}>
+                {[{id:"read",label:"Read",icon:"📖"},{id:"vocab",label:`Vocabulary (${vl.length})`,icon:"📝"},{id:"quiz",label:`Quiz (${ql.length})`,icon:"🧠"}].map(t=>(
+                  <button key={t.id} onClick={()=>setArticleTab(t.id)} style={{ background:articleTab===t.id?artVocabBg:"transparent",border:"none",borderRadius:6,padding:"6px 14px",cursor:"pointer",fontSize:12,fontWeight:articleTab===t.id?700:500,color:articleTab===t.id?artTextPrimary:"#888",fontFamily:"'Source Sans 3',sans-serif",boxShadow:articleTab===t.id?"0 1px 3px rgba(0,0,0,0.08)":"none",transition:"all .15s" }}>{t.icon} {t.label}</button>
+                ))}
+              </div>
             </div>
           </div>
         </div>
         <article style={{ maxWidth:780,margin:"0 auto",padding:"40px 24px 80px",animation:"fadeUp .4s ease-out" }}>
           <span style={{ fontSize:12,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.14em",color:"#8b7355" }}>{article.topics}</span>
-          <h1 style={{ fontSize:42,fontWeight:700,lineHeight:1.1,margin:"16px 0 20px",fontFamily:"'Playfair Display',serif",color:"#1a1a1a" }}>{article.title}</h1>
-          <div style={{ display:"flex",alignItems:"center",gap:8,paddingBottom:24,borderBottom:"1px solid #ddd",marginBottom:32 }}>
-            <span style={{ fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.1em",color:levelColors[article.level]||"#888",background:(levelColors[article.level]||"#888")+"18",padding:"4px 12px",borderRadius:4 }}>Level {article.level} · {levelLabels[article.level]||''}</span>
+          <h1 style={{ fontSize:42,fontWeight:700,lineHeight:1.1,margin:"16px 0 20px",fontFamily:"'Playfair Display',serif",color:artTextPrimary,transition:"color .3s" }}>{article.title}</h1>
+          <div style={{ display:"flex",alignItems:"center",gap:8,paddingBottom:24,borderBottom:`1px solid ${artBorderColor}`,marginBottom:32 }}>
+            <span style={{ fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.1em",color:levelColors[article.level]||"#888",background:(levelColors[article.level]||"#888")+"22",padding:"4px 12px",borderRadius:4 }}>Level {article.level} · {levelLabels[article.level]||''}</span>
             <span style={{ fontSize:13,color:"#aaa" }}>·</span>
-            <span style={{ fontSize:13,color:"#999" }}>{vl.length} vocabulary</span>
+            <span style={{ fontSize:13,color:artTextSecondary }}>{vl.length} vocabulary</span>
             <span style={{ fontSize:13,color:"#aaa" }}>·</span>
-            <span style={{ fontSize:13,color:"#999" }}>{ql.length} quiz</span>
+            <span style={{ fontSize:13,color:artTextSecondary }}>{ql.length} quiz</span>
           </div>
           <div style={{ marginBottom:36,borderRadius:6,overflow:"hidden" }}>
-            <img src={article.image} alt="" style={{ width:"100%",height:380,objectFit:"cover",filter:"grayscale(8%)" }} />
+            <img src={article.image} alt="" style={{ width:"100%",height:380,objectFit:"cover",filter:dk?"grayscale(30%) brightness(0.75)":"grayscale(8%)",transition:"filter .3s" }} />
           </div>
 
           {articleTab==="read" && (
             <div>
-              <div style={{ background:"#f0ece4",borderRadius:8,padding:"14px 18px",marginBottom:36,display:"flex",alignItems:"center",gap:10,fontSize:14,color:"#6b5634",borderLeft:"4px solid #c9a84c" }}>
+              <div style={{ background:artHintBg,borderRadius:8,padding:"14px 18px",marginBottom:36,display:"flex",alignItems:"center",gap:10,fontSize:14,color:artHintText,borderLeft:`4px solid ${artHintBorder}` }}>
                 <span style={{ fontSize:18 }}>📖</span>
                 <span><strong>{vl.length} kata penting</strong> ter-highlight di artikel ini. Klik kata bergaris bawah untuk melihat artinya.</span>
               </div>
-              <HighlightedText content={article.body} vocabList={vl} />
+              <div style={{ color:artBodyColor, transition:"color .3s" }}>
+                <HighlightedText content={article.body} vocabList={vl} dark={dk} />
+              </div>
             </div>
           )}
 
           {articleTab==="vocab" && (
             <div style={{ animation:"fadeUp .3s ease-out" }}>
-              <h3 style={{ fontFamily:"'Playfair Display',serif",fontSize:24,marginBottom:20,color:"#1a1a1a" }}>Vocabulary List</h3>
+              <h3 style={{ fontFamily:"'Playfair Display',serif",fontSize:24,marginBottom:20,color:artTextPrimary }}>Vocabulary List</h3>
               <div style={{ display:"flex",flexDirection:"column",gap:12 }}>
                 {vl.map((v,i) => (
-                  <div key={v.vid} style={{ background:i%2===0?"#fff":"#f9f6f0",border:"1px solid #e8e2d8",borderRadius:10,padding:"18px 22px" }}>
+                  <div key={v.vid} style={{ background:i%2===0?artVocabBg:artVocabAltBg,border:`1px solid ${artVocabBorder}`,borderRadius:10,padding:"18px 22px",transition:"background .3s" }}>
                     <div style={{ display:"flex",justifyContent:"space-between",alignItems:"baseline",marginBottom:6 }}>
-                      <span style={{ fontFamily:"'Playfair Display',serif",fontSize:20,fontWeight:700,color:"#1a1a1a" }}>{v.word}</span>
-                      <span style={{ fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.08em",color:"#8b7355",background:"#f0ece4",padding:"3px 10px",borderRadius:4 }}>{v.pos}</span>
+                      <span style={{ fontFamily:"'Playfair Display',serif",fontSize:20,fontWeight:700,color:artTextPrimary }}>{v.word}</span>
+                      <span style={{ fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.08em",color:"#8b7355",background:dk?"rgba(139,115,85,0.2)":"#f0ece4",padding:"3px 10px",borderRadius:4 }}>{v.pos}</span>
                     </div>
                     <div style={{ fontSize:16,fontWeight:600,color:COLORS.gold,marginBottom:8 }}>{v.translation}</div>
-                    {v.context && <div style={{ fontSize:14,fontStyle:"italic",color:"#888",lineHeight:1.5,paddingTop:8,borderTop:"1px solid #eee" }}>"{v.context}"</div>}
+                    {v.context && <div style={{ fontSize:14,fontStyle:"italic",color:artVocabContextColor,lineHeight:1.5,paddingTop:8,borderTop:`1px solid ${artVocabBorder}` }}>"{v.context}"</div>}
                   </div>
                 ))}
               </div>
             </div>
           )}
-          {articleTab==="quiz" && <div style={{ animation:"fadeUp .3s ease-out" }}><ReadingQuiz questions={ql} /></div>}
+          {articleTab==="quiz" && <div style={{ animation:"fadeUp .3s ease-out" }}><ReadingQuiz questions={ql} dark={dk} /></div>}
         </article>
       </div>
     );
   }
 
   // ── READING HOME ──
+  const dk = dark;
+  const bg = dk ? "#0f0f0f" : "#faf7f2";
+  const bgCard = dk ? "#1a1a1a" : "#fff";
+  const bgCardAlt = dk ? "#222" : "#fdfcf9";
+  const bgNav = dk ? "rgba(15,15,15,0.97)" : "rgba(250,247,242,0.97)";
+  const bgNavBtn = dk ? "#fff" : "#1a1a1a";
+  const bgNavBtnTxt = dk ? "#0f0f0f" : "#faf7f2";
+  const navInactive = dk ? "rgba(255,255,255,0.45)" : "#666";
+  const textPrimary = dk ? "#f0ece4" : "#1a1a1a";
+  const textSecondary = dk ? "rgba(240,236,228,0.55)" : "#666";
+  const textMuted = dk ? "rgba(240,236,228,0.35)" : "#aaa";
+  const borderColor = dk ? "#333" : "#ddd";
+  const borderStrong = dk ? "#444" : "#1a1a1a";
+  const mastBorder = dk ? "3px double #444" : "3px double #1a1a1a";
+  const catNavBg = dk ? "rgba(15,15,15,0.97)" : "rgba(250,247,242,0.97)";
+  const catNavBorder = dk ? "#2a2a2a" : "#e0dcd5";
+  const badgeBg = dk ? "#2a2a2a" : "#f0ece4";
+  const badgeColor = dk ? "#c9a84c" : "#8b7355";
+  const vocabBg = dk ? "rgba(201,168,76,0.12)" : "#f0ece4";
+  const footerBg = dk ? "#070707" : "#1a1a1a";
+
   return (
-    <div style={{ minHeight:"100vh",background:"#faf7f2",fontFamily:"'Source Sans 3',sans-serif" }}>
-      <div style={{ textAlign:"center",padding:"36px 24px 8px",borderBottom:"3px double #1a1a1a",maxWidth:1100,margin:"0 auto" }}>
-        <div style={{ fontSize:11,color:"#999",letterSpacing:"0.14em",textTransform:"uppercase",fontFamily:"'Source Sans 3',sans-serif" }}>English Reading Practice</div>
-        <h1 style={{ fontFamily:"'Playfair Display',serif",fontSize:48,fontWeight:900,color:"#1a1a1a",letterSpacing:"-0.02em",marginBottom:6,lineHeight:1 }}>The Reading Room</h1>
-        <div style={{ fontSize:13,color:"#aaa",fontFamily:"'Source Serif 4',serif",fontStyle:"italic",marginBottom:10 }}>Baca, pelajari, dan perkaya kosakata Inggrismu</div>
+    <div style={{ minHeight:"100vh", background:bg, fontFamily:"'Source Sans 3',sans-serif", transition:"background .3s, color .3s" }}>
+      {/* Masthead */}
+      <div style={{ textAlign:"center", padding:"36px 24px 8px", borderBottom:mastBorder, maxWidth:1100, margin:"0 auto" }}>
+        <div style={{ fontSize:11, color:textMuted, letterSpacing:"0.14em", textTransform:"uppercase", fontFamily:"'Source Sans 3',sans-serif" }}>English Reading Practice</div>
+        <h1 style={{ fontFamily:"'Playfair Display',serif", fontSize:48, fontWeight:900, color:textPrimary, letterSpacing:"-0.02em", marginBottom:6, lineHeight:1, transition:"color .3s" }}>The Reading Room</h1>
+        <div style={{ fontSize:13, color:textMuted, fontFamily:"'Source Serif 4',serif", fontStyle:"italic", marginBottom:10 }}>Baca, pelajari, dan perkaya kosakata Inggrismu</div>
       </div>
-      <div style={{ position:"sticky",top:48,zIndex:150,background:"rgba(250,247,242,0.97)",backdropFilter:"blur(8px)",borderBottom:"1px solid #e0dcd5" }}>
-        <div style={{ maxWidth:1100,margin:"0 auto",padding:"0 24px",display:"flex",gap:2,overflowX:"auto",alignItems:"center" }}>
+
+      {/* Category nav */}
+      <div style={{ position:"sticky", top:48, zIndex:150, background:catNavBg, backdropFilter:"blur(8px)", borderBottom:`1px solid ${catNavBorder}`, transition:"background .3s" }}>
+        <div style={{ maxWidth:1100, margin:"0 auto", padding:"0 24px", display:"flex", gap:2, overflowX:"auto", alignItems:"center" }}>
           {RD_CATEGORIES.map(c => (
-            <button key={c.id} onClick={() => setCategory(c.id)} style={{ background:category===c.id?"#1a1a1a":"none",color:category===c.id?"#faf7f2":"#666",border:"none",cursor:"pointer",padding:"12px 20px",fontSize:13,fontWeight:600,fontFamily:"'Source Sans 3',sans-serif",letterSpacing:"0.05em",textTransform:"uppercase",borderRadius:category===c.id?"6px 6px 0 0":0,transition:"all .2s",whiteSpace:"nowrap" }}>{c.label}</button>
+            <button key={c.id} onClick={() => setCategory(c.id)} style={{
+              background: category===c.id ? bgNavBtn : "none",
+              color: category===c.id ? bgNavBtnTxt : navInactive,
+              border:"none", cursor:"pointer", padding:"12px 20px", fontSize:13, fontWeight:600,
+              fontFamily:"'Source Sans 3',sans-serif", letterSpacing:"0.05em", textTransform:"uppercase",
+              borderRadius: category===c.id ? "6px 6px 0 0" : 0, transition:"all .2s", whiteSpace:"nowrap"
+            }}>{c.label}</button>
           ))}
-          <div style={{ marginLeft:"auto" }}>
-            <button onClick={()=>setShowAdmin(true)} style={{ padding:"7px 16px",background:"transparent",border:"1.5px solid #d8d3c8",borderRadius:7,fontSize:12,fontWeight:600,color:"#8b7355",cursor:"pointer",fontFamily:"'Source Sans 3',sans-serif",display:"flex",alignItems:"center",gap:5,transition:"all .15s",whiteSpace:"nowrap" }}
-              onMouseEnter={e=>{e.currentTarget.style.borderColor="#8b7355";e.currentTarget.style.background="#f0ece4";}}
-              onMouseLeave={e=>{e.currentTarget.style.borderColor="#d8d3c8";e.currentTarget.style.background="transparent";}}
+          <div style={{ marginLeft:"auto", display:"flex", gap:8, alignItems:"center" }}>
+            {/* Dark mode toggle */}
+            <button onClick={() => setDark(d => !d)} title={dk ? "Switch to Light Mode" : "Switch to Dark Mode"} style={{
+              padding:"7px 14px", background: dk ? "#2a2a2a" : "#f0ece4",
+              border: `1.5px solid ${dk ? "#444" : "#d8d3c8"}`,
+              borderRadius:7, fontSize:13, cursor:"pointer",
+              display:"flex", alignItems:"center", gap:5, transition:"all .2s", whiteSpace:"nowrap",
+              color: dk ? "#e8c87a" : "#8b7355", fontWeight:600, fontFamily:"'Source Sans 3',sans-serif"
+            }}>
+              {dk ? "☀ Light" : "🌙 Dark"}
+            </button>
+            <button onClick={() => setShowAdmin(true)} style={{
+              padding:"7px 16px", background:"transparent",
+              border: `1.5px solid ${dk ? "#444" : "#d8d3c8"}`,
+              borderRadius:7, fontSize:12, fontWeight:600,
+              color: dk ? "rgba(255,255,255,0.4)" : "#8b7355",
+              cursor:"pointer", fontFamily:"'Source Sans 3',sans-serif",
+              display:"flex", alignItems:"center", gap:5, transition:"all .15s", whiteSpace:"nowrap"
+            }}
+              onMouseEnter={e => { e.currentTarget.style.borderColor = dk ? "#888" : "#8b7355"; e.currentTarget.style.background = dk ? "#2a2a2a" : "#f0ece4"; }}
+              onMouseLeave={e => { e.currentTarget.style.borderColor = dk ? "#444" : "#d8d3c8"; e.currentTarget.style.background = "transparent"; }}
             >⚙ Admin</button>
           </div>
         </div>
       </div>
-      <div style={{ maxWidth:1100,margin:"0 auto",padding:"36px 24px 60px" }}>
+
+      {/* Articles */}
+      <div style={{ maxWidth:1100, margin:"0 auto", padding:"36px 24px 60px" }}>
         {filtered.length === 0 && (
-          <div style={{ textAlign:"center", padding:"60px 20px", color:"#aaa" }}>
+          <div style={{ textAlign:"center", padding:"60px 20px", color:textMuted }}>
             <div style={{ fontSize:40, marginBottom:12 }}>📭</div>
-            <div style={{ fontSize:16, fontWeight:600, marginBottom:4 }}>No articles in this category</div>
+            <div style={{ fontSize:16, fontWeight:600, marginBottom:4, color:textSecondary }}>No articles in this category</div>
             <div style={{ fontSize:14 }}>Add articles through the Admin panel</div>
           </div>
         )}
@@ -1072,41 +1148,51 @@ function ReadingModule({ onBack }) {
           const vc = getVocab(a.id).length, qc = getQuiz(a.id).length;
           if (i === 0) {
             return (
-              <div key={a.id} onClick={() => setArticle(a)} style={{ display:"grid",gridTemplateColumns:"1.1fr 1fr",gap:36,marginBottom:40,paddingBottom:40,borderBottom:"2px solid #1a1a1a",cursor:"pointer" }}>
-                <div style={{ overflow:"hidden",borderRadius:4,aspectRatio:"4/3" }}><img src={a.image} alt="" style={{ width:"100%",height:"100%",objectFit:"cover",filter:"grayscale(10%)" }} /></div>
-                <div style={{ display:"flex",flexDirection:"column",justifyContent:"center" }}>
-                  <span style={{ fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.12em",color:"#8b7355",marginBottom:8,fontFamily:"'Source Sans 3',sans-serif" }}>{a.topics}</span>
-                  <div style={{ display:"flex",gap:6,marginBottom:10 }}>
-                    <span style={{ fontSize:10,fontWeight:700,textTransform:"uppercase",color:levelColors[a.level]||"#888",background:(levelColors[a.level]||"#888")+"18",padding:"3px 10px",borderRadius:4 }}>Level {a.level}</span>
-                    <span style={{ fontSize:10,fontWeight:600,color:"#8b7355",background:"#f0ece4",padding:"3px 10px",borderRadius:4 }}>{vc} vocab · {qc} quiz</span>
+              <div key={a.id} onClick={() => setArticle(a)} style={{
+                display:"grid", gridTemplateColumns:"1.1fr 1fr", gap:36,
+                marginBottom:40, paddingBottom:40, borderBottom:`2px solid ${borderStrong}`, cursor:"pointer"
+              }}>
+                <div style={{ overflow:"hidden", borderRadius:4, aspectRatio:"4/3" }}>
+                  <img src={a.image} alt="" style={{ width:"100%", height:"100%", objectFit:"cover", filter:dk?"grayscale(30%) brightness(0.8)":"grayscale(10%)", transition:"filter .3s" }} />
+                </div>
+                <div style={{ display:"flex", flexDirection:"column", justifyContent:"center" }}>
+                  <span style={{ fontSize:11, fontWeight:700, textTransform:"uppercase", letterSpacing:"0.12em", color:badgeColor, marginBottom:8, fontFamily:"'Source Sans 3',sans-serif" }}>{a.topics}</span>
+                  <div style={{ display:"flex", gap:6, marginBottom:10 }}>
+                    <span style={{ fontSize:10, fontWeight:700, textTransform:"uppercase", color:levelColors[a.level]||"#888", background:(levelColors[a.level]||"#888")+"22", padding:"3px 10px", borderRadius:4 }}>Level {a.level}</span>
+                    <span style={{ fontSize:10, fontWeight:600, color:badgeColor, background:vocabBg, padding:"3px 10px", borderRadius:4 }}>{vc} vocab · {qc} quiz</span>
                   </div>
-                  <h2 style={{ fontSize:32,fontWeight:700,lineHeight:1.15,margin:"0 0 14px",fontFamily:"'Playfair Display',serif",color:"#1a1a1a" }}>{a.title}</h2>
-                  <p style={{ fontSize:15,lineHeight:1.5,color:"#666",margin:0,fontFamily:"'Source Serif 4',serif",display:"-webkit-box",WebkitLineClamp:3,WebkitBoxOrient:"vertical",overflow:"hidden" }}>{a.body.split("\n\n")[0]}</p>
+                  <h2 style={{ fontSize:32, fontWeight:700, lineHeight:1.15, margin:"0 0 14px", fontFamily:"'Playfair Display',serif", color:textPrimary, transition:"color .3s" }}>{a.title}</h2>
+                  <p style={{ fontSize:15, lineHeight:1.5, color:textSecondary, margin:0, fontFamily:"'Source Serif 4',serif", display:"-webkit-box", WebkitLineClamp:3, WebkitBoxOrient:"vertical", overflow:"hidden" }}>{a.body.split("\n\n")[0]}</p>
                 </div>
               </div>
             );
           }
           return (
-            <div key={a.id} onClick={() => setArticle(a)} style={{ cursor:"pointer",borderBottom:"1px solid #ddd",paddingBottom:20,marginBottom:20,display:"flex",gap:18 }}>
+            <div key={a.id} onClick={() => setArticle(a)} style={{
+              cursor:"pointer", borderBottom:`1px solid ${borderColor}`,
+              paddingBottom:20, marginBottom:20, display:"flex", gap:18
+            }}>
               <div style={{ flex:1 }}>
-                <span style={{ fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.12em",color:"#8b7355",fontFamily:"'Source Sans 3',sans-serif" }}>{a.topics}</span>
-                <div style={{ display:"flex",gap:6,marginBottom:6 }}>
-                  <span style={{ fontSize:10,fontWeight:700,color:levelColors[a.level]||"#888",background:(levelColors[a.level]||"#888")+"18",padding:"3px 10px",borderRadius:4 }}>Level {a.level}</span>
-                  <span style={{ fontSize:10,fontWeight:600,color:"#8b7355",background:"#f0ece4",padding:"3px 10px",borderRadius:4 }}>{vc} vocab · {qc} quiz</span>
+                <span style={{ fontSize:10, fontWeight:700, textTransform:"uppercase", letterSpacing:"0.12em", color:badgeColor, fontFamily:"'Source Sans 3',sans-serif" }}>{a.topics}</span>
+                <div style={{ display:"flex", gap:6, marginBottom:6 }}>
+                  <span style={{ fontSize:10, fontWeight:700, color:levelColors[a.level]||"#888", background:(levelColors[a.level]||"#888")+"22", padding:"3px 10px", borderRadius:4 }}>Level {a.level}</span>
+                  <span style={{ fontSize:10, fontWeight:600, color:badgeColor, background:vocabBg, padding:"3px 10px", borderRadius:4 }}>{vc} vocab · {qc} quiz</span>
                 </div>
-                <h3 style={{ fontSize:20,fontWeight:700,lineHeight:1.25,margin:"6px 0 6px",fontFamily:"'Playfair Display',serif",color:"#1a1a1a" }}>{a.title}</h3>
-                <p style={{ fontSize:14,lineHeight:1.45,color:"#777",margin:0,fontFamily:"'Source Serif 4',serif",display:"-webkit-box",WebkitLineClamp:2,WebkitBoxOrient:"vertical",overflow:"hidden" }}>{a.body.split("\n\n")[0]}</p>
+                <h3 style={{ fontSize:20, fontWeight:700, lineHeight:1.25, margin:"6px 0 6px", fontFamily:"'Playfair Display',serif", color:textPrimary, transition:"color .3s" }}>{a.title}</h3>
+                <p style={{ fontSize:14, lineHeight:1.45, color:textSecondary, margin:0, fontFamily:"'Source Serif 4',serif", display:"-webkit-box", WebkitLineClamp:2, WebkitBoxOrient:"vertical", overflow:"hidden" }}>{a.body.split("\n\n")[0]}</p>
               </div>
-              <div style={{ width:140,minWidth:140,height:100,overflow:"hidden",borderRadius:4,flexShrink:0 }}>
-                <img src={a.image} alt="" style={{ width:"100%",height:"100%",objectFit:"cover",filter:"grayscale(10%)" }} />
+              <div style={{ width:140, minWidth:140, height:100, overflow:"hidden", borderRadius:4, flexShrink:0 }}>
+                <img src={a.image} alt="" style={{ width:"100%", height:"100%", objectFit:"cover", filter:dk?"grayscale(30%) brightness(0.8)":"grayscale(10%)", transition:"filter .3s" }} />
               </div>
             </div>
           );
         })}
       </div>
-      <div style={{ borderTop:"2px solid #1a1a1a",background:"#1a1a1a",padding:"36px 24px",textAlign:"center" }}>
-        <div style={{ fontFamily:"'Playfair Display',serif",fontSize:18,fontWeight:900,color:COLORS.goldLight,marginBottom:6 }}>Edus English · The Reading Room</div>
-        <p style={{ fontSize:12,color:"rgba(255,255,255,0.3)" }}>Platform latihan bahasa Inggris untuk SNBT</p>
+
+      {/* Footer */}
+      <div style={{ borderTop:`2px solid ${borderStrong}`, background:footerBg, padding:"36px 24px", textAlign:"center", transition:"background .3s" }}>
+        <div style={{ fontFamily:"'Playfair Display',serif", fontSize:18, fontWeight:900, color:COLORS.goldLight, marginBottom:6 }}>EduEnglish · The Reading Room</div>
+        <p style={{ fontSize:12, color:"rgba(255,255,255,0.3)" }}>Platform latihan bahasa Inggris untuk SNBT</p>
       </div>
     </div>
   );
@@ -1139,8 +1225,7 @@ export default function App() {
         <div onClick={() => setActiveModule("landing")} style={{ display:"flex",alignItems:"center",gap:10,padding:"12px 0",cursor:"pointer" }}>
           <div style={{ width:32,height:32,background:COLORS.sage,borderRadius:8,display:"flex",alignItems:"center",justifyContent:"center",fontSize:16 }}>📖</div>
           <div>
-            <div style={{ fontFamily:"'DM Serif Display',serif",color:"#fff",fontSize:"1.15rem",lineHeight:1 }}>Edus <span style={{ color:COLORS.sageLight }}>English</span></div>
-            <div style={{ color:"rgba(255,255,255,0.35)",fontSize:"0.62rem",textTransform:"uppercase",letterSpacing:"0.07em",marginTop:2 }}>by Edusfera</div>
+            <div style={{ fontFamily:"'DM Serif Display',serif",color:"#fff",fontSize:"1.15rem",lineHeight:1 }}>Edu<span style={{ color:COLORS.sageLight }}>English</span></div>
           </div>
         </div>
         <div style={{ display:"flex",gap:0 }}>
@@ -1224,7 +1309,7 @@ export default function App() {
       </div>
 
       <div style={{ textAlign:"center",padding:"16px 24px 52px" }}>
-        <p style={{ color:COLORS.textLight,fontSize:"0.78rem" }}>© 2026 Edusfera · Platform persiapan SNBT</p>
+        <p style={{ color:COLORS.textLight,fontSize:"0.78rem" }}>© 2026 EduEnglish · Platform persiapan SNBT</p>
       </div>
     </div>
   );

@@ -337,75 +337,87 @@ function TranslatePanel({dark:dk,apiKey}){
     {toggleBtn}
     <div style={{
       position:"fixed",bottom:90,right:28,zIndex:599,
-      width:340,background:panelBg,border:`1px solid ${panelBorder}`,
-      borderRadius:16,boxShadow:"0 8px 40px rgba(0,0,0,0.2)",
+      width:300,background:panelBg,border:`1px solid ${panelBorder}`,
+      borderRadius:14,boxShadow:"0 8px 32px rgba(0,0,0,0.15)",
       fontFamily:"'Source Sans 3',sans-serif",
       animation:"fadeUp .2s ease-out",overflow:"hidden",
     }}>
-      {/* Header */}
-      <div style={{padding:"14px 18px 10px",borderBottom:`1px solid ${panelBorder}`,display:"flex",alignItems:"center",gap:8}}>
-        <span style={{fontSize:15,fontWeight:700,color:txtMain}}>🌐 Translator</span>
-        <span style={{fontSize:11,color:txtMuted,background:dk?"#333":"#f0ece4",padding:"2px 8px",borderRadius:4,marginLeft:"auto"}}>EN → ID</span>
-        {input&&<button onClick={clear} style={{background:"none",border:"none",color:txtMuted,cursor:"pointer",fontSize:12,padding:0}}>Clear</button>}
-      </div>
-
-      {/* Input */}
-      <div style={{padding:"12px 16px"}}>
+      {/* Input area */}
+      <div style={{padding:"14px 16px 10px"}}>
         <textarea
           value={input}
           onChange={e=>setInput(e.target.value)}
-          placeholder="Ketik atau paste kata/kalimat bahasa Inggris..."
+          placeholder="Ketik kata atau kalimat..."
           style={{
-            width:"100%",minHeight:72,padding:"10px 12px",
-            background:inputBg,border:`1.5px solid ${loading?"#c9a84c":error?"#c1554d":input&&result?"#2d6a4f":inputBorder}`,
-            borderRadius:8,resize:"vertical",fontSize:14,
+            width:"100%",minHeight:64,padding:"8px 10px",
+            background:inputBg,
+            border:`1.5px solid ${loading?"#c9a84c":error?"#c1554d":result?"#2d6a4f":inputBorder}`,
+            borderRadius:8,resize:"none",fontSize:14,
             color:txtMain,fontFamily:"'Source Serif 4',serif",
-            outline:"none",lineHeight:1.5,transition:"border .2s",
+            outline:"none",lineHeight:1.6,transition:"border .2s",
           }}
           autoFocus
         />
+        {input&&(
+          <button onClick={clear} style={{
+            marginTop:4,fontSize:11,color:txtMuted,background:"none",
+            border:"none",cursor:"pointer",padding:0,
+          }}>hapus</button>
+        )}
+      </div>
 
-        {/* Result */}
+      {/* Divider */}
+      <div style={{height:1,background:panelBorder,margin:"0 16px"}}/>
+
+      {/* Result area */}
+      <div style={{padding:"10px 16px 14px",minHeight:52}}>
         {loading&&(
-          <div style={{marginTop:8,display:"flex",alignItems:"center",gap:8,color:txtMuted,fontSize:13}}>
-            <span style={{display:"inline-block",width:14,height:14,border:"2px solid #c9a84c",borderTopColor:"transparent",borderRadius:"50%",animation:"spin 0.7s linear infinite"}}/>
-            Menerjemahkan...
+          <div style={{display:"flex",alignItems:"center",gap:7,color:txtMuted,fontSize:13,paddingTop:4}}>
+            <span style={{display:"inline-block",width:12,height:12,border:"1.5px solid #c9a84c",borderTopColor:"transparent",borderRadius:"50%",animation:"spin 0.7s linear infinite",flexShrink:0}}/>
+            <span style={{letterSpacing:"0.02em"}}>Menerjemahkan...</span>
           </div>
         )}
         {result&&!loading&&(
-          <div style={{marginTop:8,padding:"10px 12px",background:dk?"#1e2e1e":"#e8f5e9",borderRadius:8,border:`1px solid ${dk?"#2d4a2d":"#a5d6a7"}`}}>
-            <div style={{fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.06em",color:dk?"#6ee7b7":"#2d6a4f",marginBottom:4}}>Terjemahan</div>
-            <div style={{fontSize:15,fontWeight:600,color:dk?"#d4efd4":"#1b4332",lineHeight:1.5}}>{result}</div>
-            <button onClick={()=>navigator.clipboard?.writeText(result)} style={{marginTop:6,fontSize:11,color:dk?"#6ee7b7":"#2d6a4f",background:"none",border:"none",cursor:"pointer",padding:0,fontWeight:600}}>
-              📋 Salin
-            </button>
-          </div>
+          <p style={{
+            fontSize:15,fontWeight:500,
+            color:dk?"#b8f0c8":"#1b4332",
+            lineHeight:1.65,margin:0,
+            letterSpacing:"0.01em",
+          }}>{result}</p>
+        )}
+        {!result&&!loading&&!error&&(
+          <p style={{fontSize:13,color:txtMuted,margin:0,paddingTop:4,fontStyle:"italic"}}>
+            Terjemahan muncul di sini
+          </p>
         )}
         {error&&!loading&&(
-          <div style={{marginTop:8,padding:"10px 12px",background:dk?"#2d1a1a":"#fce8e6",borderRadius:8,fontSize:13,color:dk?"#fca5a5":"#c1554d"}}>
+          <p style={{fontSize:12,color:dk?"#fca5a5":"#c1554d",margin:0,lineHeight:1.5}}>
             ⚠ {error}
-          </div>
+          </p>
         )}
         {!apiKey&&(
-          <div style={{marginTop:8,padding:"10px 12px",background:dk?"#2a2000":"#fff8e1",borderRadius:8,fontSize:12,color:dk?"#fcd34d":"#b45309",lineHeight:1.5}}>
-            ⚠ <strong>API Key belum diset.</strong> Buka file App.jsx, cari <code style={{background:dk?"#333":"#f0ece4",padding:"1px 5px",borderRadius:3}}>GOOGLE_TRANSLATE_KEY</code> dan isi dengan API key Anda.
-          </div>
+          <p style={{fontSize:11,color:dk?"#fcd34d":"#b45309",margin:0,lineHeight:1.5}}>
+            ⚠ API Key belum diset di App.jsx
+          </p>
         )}
       </div>
 
       {/* History */}
       {history.length>0&&(
-        <div style={{borderTop:`1px solid ${histBorder}`,padding:"8px 0"}}>
-          <div style={{padding:"4px 16px 6px",fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.07em",color:txtMuted}}>Riwayat</div>
-          <div style={{maxHeight:180,overflowY:"auto"}}>
+        <div style={{borderTop:`1px solid ${histBorder}`}}>
+          <div style={{maxHeight:160,overflowY:"auto"}}>
             {history.map((h,i)=>(
               <div key={i} onClick={()=>{setInput(h.en);setResult(h.id);}}
-                style={{padding:"7px 16px",cursor:"pointer",background:i===0&&input===h.en?histBg:"transparent",transition:"background .1s"}}
+                style={{
+                  padding:"8px 16px",cursor:"pointer",
+                  borderBottom:i<history.length-1?`1px solid ${histBorder}`:"none",
+                  transition:"background .1s",
+                }}
                 onMouseEnter={e=>e.currentTarget.style.background=histBg}
-                onMouseLeave={e=>e.currentTarget.style.background=i===0&&input===h.en?histBg:"transparent"}
+                onMouseLeave={e=>e.currentTarget.style.background="transparent"}
               >
-                <div style={{fontSize:13,fontWeight:600,color:txtMain,marginBottom:2}}>{h.en}</div>
-                <div style={{fontSize:12,color:dk?"#6ee7b7":"#2d6a4f"}}>{h.id}</div>
+                <div style={{fontSize:12,color:txtMain,marginBottom:2}}>{h.en}</div>
+                <div style={{fontSize:11,color:dk?"#6ee7b7":"#2d6a4f"}}>{h.id}</div>
               </div>
             ))}
           </div>

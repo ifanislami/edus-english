@@ -1,5 +1,11 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 
+// ─── GOOGLE TRANSLATE API KEY ────────────────────────────────────────────────
+// Dapatkan API key di: https://console.cloud.google.com
+// Aktifkan "Cloud Translation API", lalu buat API key dan paste di bawah ini.
+const GOOGLE_TRANSLATE_KEY = "AIzaSyAGOYo6OVkbLe9zkRxATQQKe8rWGCsr8EE"; // ← isi API key Anda di sini
+// ─────────────────────────────────────────────────────────────────────────────
+
 // ═══════════════════════════════════════
 // DATA
 // ═══════════════════════════════════════
@@ -253,6 +259,161 @@ function VocabTooltip({word,data,position,onClose}){
       {data.context&&<div style={{fontSize:13,fontStyle:"italic",color:"rgba(245,240,235,0.65)",lineHeight:1.5}}>"{data.context}"</div>}
       <div style={{position:"absolute",top:-6,left:20,width:12,height:12,background:"#1a1a1a",transform:"rotate(45deg)"}}/>
     </div>
+  </>);
+}
+
+// ═══════════════════════════════════════
+// TRANSLATE PANEL
+// ═══════════════════════════════════════
+function TranslatePanel({dark:dk,apiKey}){
+  const [open,setOpen]=useState(false);
+  const [input,setInput]=useState("");
+  const [result,setResult]=useState(null);
+  const [loading,setLoading]=useState(false);
+  const [error,setError]=useState("");
+  const [history,setHistory]=useState([]);
+  const debounceRef=useRef(null);
+
+  // Panel colors
+  const panelBg=dk?"#1c1c1c":"#ffffff";
+  const panelBorder=dk?"#333":"#e0dcd5";
+  const inputBg=dk?"#2a2a2a":"#f9f7f2";
+  const inputBorder=dk?"#444":"#d8d3c8";
+  const txtMain=dk?"#f0ece4":"#1a1a1a";
+  const txtMuted=dk?"rgba(240,236,228,0.4)":"#aaa";
+  const histBg=dk?"#252525":"#f5f1ea";
+  const histBorder=dk?"#333":"#e8e2d8";
+
+  const doTranslate=useCallback(async(text)=>{
+    if(!text.trim())return;
+    setLoading(true);setError("");setResult(null);
+    try{
+      // Use Google Translate API v2
+      const url=`https://translation.googleapis.com/language/translate/v2?key=${apiKey}`;
+      const res=await fetch(url,{
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({q:text.trim(),source:"en",target:"id",format:"text"})
+      });
+      if(!res.ok){const e=await res.json();throw new Error(e?.error?.message||"API error");}
+      const data=await res.json();
+      const translated=data?.data?.translations?.[0]?.translatedText||"";
+      setResult(translated);
+      setHistory(prev=>{
+        const entry={en:text.trim(),id:translated,ts:Date.now()};
+        return [entry,...prev.filter(h=>h.en!==text.trim())].slice(0,8);
+      });
+    }catch(e){
+      setError(e.message||"Gagal menghubungi API. Periksa API key.");
+    }finally{setLoading(false);}
+  },[apiKey]);
+
+  // Auto-translate with debounce as user types
+  useEffect(()=>{
+    clearTimeout(debounceRef.current);
+    if(input.trim().length<1){setResult(null);setError("");return;}
+    debounceRef.current=setTimeout(()=>doTranslate(input),700);
+    return()=>clearTimeout(debounceRef.current);
+  },[input,doTranslate]);
+
+  const clear=()=>{setInput("");setResult(null);setError("");};
+
+  // Floating toggle button
+  const toggleBtn=(
+    <button onClick={()=>setOpen(o=>!o)} title="Translate" style={{
+      position:"fixed",bottom:28,right:28,zIndex:600,
+      width:52,height:52,borderRadius:"50%",
+      background:open?"#c1554d":dk?"#2a2a2a":"#1a1a1a",
+      color:"#fff",border:"none",cursor:"pointer",
+      fontSize:22,boxShadow:"0 4px 20px rgba(0,0,0,0.25)",
+      display:"flex",alignItems:"center",justifyContent:"center",
+      transition:"all .2s",
+    }}>{open?"✕":"🌐"}</button>
+  );
+
+  if(!open)return toggleBtn;
+
+  return(<>
+    {toggleBtn}
+    <div style={{
+      position:"fixed",bottom:90,right:28,zIndex:599,
+      width:340,background:panelBg,border:`1px solid ${panelBorder}`,
+      borderRadius:16,boxShadow:"0 8px 40px rgba(0,0,0,0.2)",
+      fontFamily:"'Source Sans 3',sans-serif",
+      animation:"fadeUp .2s ease-out",overflow:"hidden",
+    }}>
+      {/* Header */}
+      <div style={{padding:"14px 18px 10px",borderBottom:`1px solid ${panelBorder}`,display:"flex",alignItems:"center",gap:8}}>
+        <span style={{fontSize:15,fontWeight:700,color:txtMain}}>🌐 Translator</span>
+        <span style={{fontSize:11,color:txtMuted,background:dk?"#333":"#f0ece4",padding:"2px 8px",borderRadius:4,marginLeft:"auto"}}>EN → ID</span>
+        {input&&<button onClick={clear} style={{background:"none",border:"none",color:txtMuted,cursor:"pointer",fontSize:12,padding:0}}>Clear</button>}
+      </div>
+
+      {/* Input */}
+      <div style={{padding:"12px 16px"}}>
+        <textarea
+          value={input}
+          onChange={e=>setInput(e.target.value)}
+          placeholder="Ketik atau paste kata/kalimat bahasa Inggris..."
+          style={{
+            width:"100%",minHeight:72,padding:"10px 12px",
+            background:inputBg,border:`1.5px solid ${loading?"#c9a84c":error?"#c1554d":input&&result?"#2d6a4f":inputBorder}`,
+            borderRadius:8,resize:"vertical",fontSize:14,
+            color:txtMain,fontFamily:"'Source Serif 4',serif",
+            outline:"none",lineHeight:1.5,transition:"border .2s",
+          }}
+          autoFocus
+        />
+
+        {/* Result */}
+        {loading&&(
+          <div style={{marginTop:8,display:"flex",alignItems:"center",gap:8,color:txtMuted,fontSize:13}}>
+            <span style={{display:"inline-block",width:14,height:14,border:"2px solid #c9a84c",borderTopColor:"transparent",borderRadius:"50%",animation:"spin 0.7s linear infinite"}}/>
+            Menerjemahkan...
+          </div>
+        )}
+        {result&&!loading&&(
+          <div style={{marginTop:8,padding:"10px 12px",background:dk?"#1e2e1e":"#e8f5e9",borderRadius:8,border:`1px solid ${dk?"#2d4a2d":"#a5d6a7"}`}}>
+            <div style={{fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.06em",color:dk?"#6ee7b7":"#2d6a4f",marginBottom:4}}>Terjemahan</div>
+            <div style={{fontSize:15,fontWeight:600,color:dk?"#d4efd4":"#1b4332",lineHeight:1.5}}>{result}</div>
+            <button onClick={()=>navigator.clipboard?.writeText(result)} style={{marginTop:6,fontSize:11,color:dk?"#6ee7b7":"#2d6a4f",background:"none",border:"none",cursor:"pointer",padding:0,fontWeight:600}}>
+              📋 Salin
+            </button>
+          </div>
+        )}
+        {error&&!loading&&(
+          <div style={{marginTop:8,padding:"10px 12px",background:dk?"#2d1a1a":"#fce8e6",borderRadius:8,fontSize:13,color:dk?"#fca5a5":"#c1554d"}}>
+            ⚠ {error}
+          </div>
+        )}
+        {!apiKey&&(
+          <div style={{marginTop:8,padding:"10px 12px",background:dk?"#2a2000":"#fff8e1",borderRadius:8,fontSize:12,color:dk?"#fcd34d":"#b45309",lineHeight:1.5}}>
+            ⚠ <strong>API Key belum diset.</strong> Buka file App.jsx, cari <code style={{background:dk?"#333":"#f0ece4",padding:"1px 5px",borderRadius:3}}>GOOGLE_TRANSLATE_KEY</code> dan isi dengan API key Anda.
+          </div>
+        )}
+      </div>
+
+      {/* History */}
+      {history.length>0&&(
+        <div style={{borderTop:`1px solid ${histBorder}`,padding:"8px 0"}}>
+          <div style={{padding:"4px 16px 6px",fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.07em",color:txtMuted}}>Riwayat</div>
+          <div style={{maxHeight:180,overflowY:"auto"}}>
+            {history.map((h,i)=>(
+              <div key={i} onClick={()=>{setInput(h.en);setResult(h.id);}}
+                style={{padding:"7px 16px",cursor:"pointer",background:i===0&&input===h.en?histBg:"transparent",transition:"background .1s"}}
+                onMouseEnter={e=>e.currentTarget.style.background=histBg}
+                onMouseLeave={e=>e.currentTarget.style.background=i===0&&input===h.en?histBg:"transparent"}
+              >
+                <div style={{fontSize:13,fontWeight:600,color:txtMain,marginBottom:2}}>{h.en}</div>
+                <div style={{fontSize:12,color:dk?"#6ee7b7":"#2d6a4f"}}>{h.id}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+
+    <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
   </>);
 }
 
@@ -569,6 +730,7 @@ function ReadingModule(){
           </div>}
           {artTab==="quiz"&&<ReadingQuiz questions={ql} dark={dk}/>}
         </article>
+        <TranslatePanel dark={dk} apiKey={GOOGLE_TRANSLATE_KEY}/>
       </div>
     );
   }

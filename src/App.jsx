@@ -1,10 +1,167 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import { LoginPage, PremiumRequestPage } from "./AuthPages";
+import { AdminDashboard } from "./AdminDashboard";
+import { UserProfile } from "./UserProfile";
+import { createClient } from "@supabase/supabase-js";
 
-// ─── GOOGLE TRANSLATE API KEY ────────────────────────────────────────────────
-// Dapatkan API key di: https://console.cloud.google.com
-// Aktifkan "Cloud Translation API", lalu buat API key dan paste di bawah ini.
-const GOOGLE_TRANSLATE_KEY = "AIzaSyAGOYo6OVkbLe9zkRxATQQKe8rWGCsr8EE"; // ← isi API key Anda di sini
+
+// SUPABASE CONFIG - ISI DI SINI
+const SUPABASE_URL = "https://ufozejengrvgdunqrrqu.supabase.co"; 
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVmb3plamVuZ3J2Z2R1bnFycnF1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk1MzU3MjAsImV4cCI6MjA5NTExMTcyMH0.hGRxp3jt_tQjU1zfOMA8RyFGYsPLqSOckDQ5Ic7Fj_0";
+const supabase = SUPABASE_URL && SUPABASE_ANON_KEY ? createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
+// ─── CONFIGURATION ──────────────────────────────────────────────────────────
+// Isi kedua key ini di Google Cloud Console (https://console.cloud.google.com)
+// 1. Aktifkan "Google Sheets API" + "Cloud Translation API"
+// 2. Buat API Key, restrict ke Sheets API + Translation API + HTTP referrer
+const GOOGLE_API_KEY = "AIzaSyAGOYo6OVkbLe9zkRxATQQKe8rWGCsr8EE"; // ← API key untuk Sheets + Translate
+const SHEETS_ID = "1KHU_1089ZQYCpymf1I5E5QdAWUr-8-15nUDPQq5bMK4";      // ← ID spreadsheet (dari URL Google Sheets)
+// Sheet names — harus sama persis dengan nama tab di Sheets
+const SHEET_ARTICLES = "articles";
+const SHEET_VOCAB = "vocab_quiz"; // for standalone vocab quiz
+const SHEET_RD_VOCAB = "vocab"; // for reading module
+const SHEET_RD_QUIZ = "quiz_article"; // for reading module
 // ─────────────────────────────────────────────────────────────────────────────
+
+// ═══════════════════════════════════════
+// GOOGLE SHEETS FETCHER
+// ═══════════════════════════════════════
+async function fetchSheet(sheetName) {
+  if (!GOOGLE_API_KEY || !SHEETS_ID) return null;
+  const url = `https://sheets.googleapis.com/v4/spreadsheets/${SHEETS_ID}/values/${encodeURIComponent(sheetName)}?valueRenderOption=FORMATTED_VALUE&key=${GOOGLE_API_KEY}`;
+  const res = await fetch(url);
+  if (!res.ok) return null;
+  const data = await res.json();
+  if (!data.values || data.values.length < 2) return null;
+  const headers = data.values[0].map(h => h.trim().toLowerCase().replace(/\s+/g, "_"));
+  return data.values.slice(1).filter(row => row.some(cell => cell && cell.trim())).map(row => {
+    const obj = {};
+    headers.forEach((h, i) => { obj[h] = (row[i] || "").trim(); });
+    return obj;
+  });
+}
+
+// Parse articles sheet into app data structures
+// Parse "articles" sheet
+// Columns: A_Code, Word_Count, Title, Topics, Body_eng, body_idn, url_image, level, Writers, Source, Date
+function parseArticlesSheet(rows) {
+  if (!rows || !rows.length) return { articles: [], vocab: [], quiz: [] };
+  const levelMap = {"A":"1","B":"2","C":"3","D":"4","1":"1","2":"2","3":"3","4":"4"};
+  const articles = rows
+    .filter(r => (r.a_code || r.id) && (r.title || r.Title))
+    .map(r => ({
+      id: r.a_code || r.id || "",
+      title: r.title || r.Title || "",
+      topics: r.topics || r.Topics || "Social",
+      level: levelMap[String(r.level || r.Level || "2")] || "2",
+      word_count: r.word_count || r.Word_Count || null,
+      writers: r.writers || r.Writers || null,
+      source: r.source || r.Source || null,
+      date: r.date || r.Date || null,
+      body: (r.body_eng || r.body || r.Body_eng || r.Body || "").replace(/\\n/g, "\n").replace(/\n /g,"\n").trim(),
+      body_idn: (r.body_idn || r.Body_idn || "").replace(/\\n/g, "\n").replace(/\n /g,"\n").trim(),
+      image: r.url_image || r.image_url || r.image || "https://images.unsplash.com/photo-1456513080510-7bf3a84b82f8?w=800"
+    }));
+  return { articles, vocab: [], quiz: [] };
+}
+
+// Parse "vocab" sheet
+// Columns: V_Code, Vocab, Translation
+function parseVocabSheetNew(rows) {
+  if (!rows || !rows.length) return [];
+  return rows.filter(r => r.v_code || r.vocab || r.Vocab).map(r => {
+    const vid = r.v_code || r.V_Code || "";
+    const aid = vid.split("_V")[0] || "";
+    return {
+      aid, vid,
+      word: r.vocab || r.Vocab || "",
+      translation: r.translation || r.Translation || "",
+      pos: r.pos || r.category || "noun",
+      context: r.context || r.Context || ""
+    };
+  });
+}
+
+// Parse "quiz_article" sheet
+// Columns: Q_code, A_code, Questions, Options 1-4, Right Answer, Explanation
+function parseQuizSheetNew(rows) {
+  if (!rows || !rows.length) return [];
+  return rows.filter(r => r.q_code || r.questions || r.Questions).map(r => ({
+    qid: r.q_code || r.Q_code || "",
+    aid: r.a_code || r.A_code || "",
+    question: r.questions || r.Questions || "",
+    options: [
+      r["options_1"] || r["options 1"] || "",
+      r["options_2"] || r["options 2"] || "",
+      r["options_3"] || r["options 3"] || "",
+      r["options_4"] || r["options 4"] || ""
+    ].filter(Boolean),
+    answer: r.right_answer || r["right answer"] || r.answer || "",
+    explanation: r.explanation || r.Explanation || ""
+  }));
+}
+
+// Parse vocab_quiz sheet (standalone vocab quiz, separate from reading)
+function parseVocabSheet(rows) {
+  if (!rows || !rows.length) return [];
+  return rows.filter(r => r.word_en || r.word).map(r => ({
+    word: r.word_en || r.word || "",
+    meaning: r.translation_id || r.translation || r.meaning || "",
+    category: r.category || "Noun"
+  }));
+}
+
+// ═══════════════════════════════════════
+// EXCEL/CSV PARSER (for admin upload)
+// ═══════════════════════════════════════
+async function parseExcelFile(file) {
+  // Dynamically import SheetJS
+  const XLSX = await import("https://cdn.sheetjs.com/xlsx-0.20.3/package/xlsx.mjs");
+  const buf = await file.arrayBuffer();
+  const wb = XLSX.read(buf, { type: "array" });
+  const sheets = {};
+  for (const name of wb.SheetNames) {
+    sheets[name] = XLSX.utils.sheet_to_json(wb.Sheets[name], { defval: "" });
+  }
+  return sheets;
+}
+
+async function parseCsvFile(file) {
+  const text = await file.text();
+  const lines = text.split("\n").map(l => l.trim()).filter(Boolean);
+  if (lines.length < 2) return [];
+  const headers = lines[0].split(",").map(h => h.trim().replace(/^"|"$/g, ""));
+  return lines.slice(1).map(line => {
+    // Simple CSV parse (handles quoted fields)
+    const vals = [];
+    let cur = "", inQ = false;
+    for (const ch of line) {
+      if (ch === '"') { inQ = !inQ; }
+      else if (ch === ',' && !inQ) { vals.push(cur.trim()); cur = ""; }
+      else { cur += ch; }
+    }
+    vals.push(cur.trim());
+    const obj = {};
+    headers.forEach((h, i) => { obj[h] = (vals[i] || "").replace(/^"|"$/g, ""); });
+    return obj;
+  });
+}
+
+// Write rows to Google Sheets (append)
+async function appendToSheet(sheetName, headers, rows) {
+  if (!GOOGLE_API_KEY || !SHEETS_ID) throw new Error("API Key atau Sheet ID belum diisi.");
+  const values = [headers, ...rows.map(r => headers.map(h => r[h] || ""))];
+  const url = `https://sheets.googleapis.com/v4/spreadsheets/${SHEETS_ID}/values/${encodeURIComponent(sheetName)}:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS&key=${GOOGLE_API_KEY}`;
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ values })
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err?.error?.message || `Sheets API error ${res.status}`);
+  }
+  return await res.json();
+}
 
 // ═══════════════════════════════════════
 // DATA
@@ -32,7 +189,9 @@ function shuffle(a){const b=[...a];for(let i=b.length-1;i>0;i--){const j=Math.fl
 // ═══════════════════════════════════════
 const VCATS=['All','Verb','Noun','Adjective'];
 
-function VocabModule(){
+function VocabModule({ supabase, currentUser }){
+  const [dbEn,setDbEn]=useState(DB_EN);
+  const [dbId,setDbId]=useState(DB_ID);
   const [scr,setScr]=useState("home");
   const [mode,setMode]=useState("en");
   const [selCats,setSelCats]=useState(new Set(["All"]));
@@ -49,20 +208,87 @@ function VocabModule(){
   const [timedOut,setTimedOut]=useState(false);
   const tmr=useRef(null);
 
-  const catCounts=useMemo(()=>({All:DB_EN.length,Verb:DB_EN.filter(w=>w.category==='Verb').length,Noun:DB_EN.filter(w=>w.category==='Noun').length,Adjective:DB_EN.filter(w=>w.category==='Adjective').length}),[]);
+    const saveVocabScore = async () => {
+  console.log("1. saveVocabScore called");
+  console.log("2. supabase:", supabase);
+  console.log("3. currentUser:", currentUser);
+  
+  if (!supabase || !currentUser) {
+    console.log("4. Missing supabase or currentUser, returning");
+    return;
+  }
+  
+  try {
+    console.log("5. About to insert:", {
+      user_id: currentUser.id,
+      score: score,
+      total: items.length,
+      category: selCats.has("All") ? "All" : Array.from(selCats)[0],
+      mode: mode,
+      completed_at: new Date().toISOString()
+    });
+
+    const { data, error } = await supabase.from("vocab_scores").insert({
+      user_id: currentUser.id,
+      score: score,
+      total: items.length,
+      category: selCats.has("All") ? "All" : Array.from(selCats)[0],
+      mode: mode,
+      completed_at: new Date().toISOString()
+    });
+
+    console.log("6. Insert result - data:", data, "error:", error);
+    
+    if (error) {
+      console.log("7. ERROR:", error);
+    } else {
+      console.log("✅ Score saved!");
+    }
+  } catch (err) {
+    console.error("8. Catch error:", err);
+  }
+};
+
+  // Fetch vocab from Google Sheets on mount
+  useEffect(()=>{
+    if(!GOOGLE_API_KEY||!SHEETS_ID)return;
+    fetchSheet(SHEET_VOCAB).then(rows=>{
+      if(!rows||!rows.length)return;
+      const parsed=parseVocabSheet(rows);
+      if(parsed.length>0){
+        setDbEn(parsed);
+        setDbId(parsed.map(w=>({word:w.meaning,meaning:w.word})));
+      }
+    }).catch(()=>{});
+  },[]);
+
+  // Listen for vocab uploads from admin
+  useEffect(()=>{
+    const handler=()=>{
+      if(window.__vocabUpdate){
+        setDbEn(prev=>[...prev,...window.__vocabUpdate]);
+        setDbId(prev=>[...prev,...window.__vocabUpdate.map(w=>({word:w.meaning,meaning:w.word}))]);
+        window.__vocabUpdate=null;
+      }
+    };
+    window.addEventListener("vocabUpdate",handler);
+    return()=>window.removeEventListener("vocabUpdate",handler);
+  },[]);
+
+  const catCounts=useMemo(()=>({All:dbEn.length,Verb:dbEn.filter(w=>w.category==='Verb').length,Noun:dbEn.filter(w=>w.category==='Noun').length,Adjective:dbEn.filter(w=>w.category==='Adjective').length}),[dbEn]);
 
   const getPool=useCallback(m=>{
-    const db=m==='en'?DB_EN:DB_ID;
+    const db=m==='en'?dbEn:dbId;
     if(selCats.has('All'))return[...db];
     if(m==='en')return db.filter(w=>selCats.has(w.category));
-    return db.filter(w=>{const r=DB_EN.find(e=>e.word.toLowerCase()===w.meaning.toLowerCase());return r&&selCats.has(r.category);});
-  },[selCats]);
+    return db.filter(w=>{const r=dbEn.find(e=>e.word.toLowerCase()===w.meaning.toLowerCase());return r&&selCats.has(r.category);});
+  },[selCats,dbEn,dbId]);
 
   const poolSize=useMemo(()=>getPool(mode).length,[getPool,mode]);
 
   function getDist(item,pool,m){
     if(m==='en'){const sc=pool.filter(w=>w.category===item.category&&w.word!==item.word&&w.meaning!==item.meaning);const fb=pool.filter(w=>w.word!==item.word&&w.meaning!==item.meaning);const s=sc.length>=3?sc:fb;return shuffle(s).slice(0,3).map(w=>w.meaning);}
-    else{const correct=item.meaning.toLowerCase();const ref=DB_EN.find(w=>w.word.toLowerCase()===correct);const cat=ref?ref.category:null;const cw=cat?new Set(DB_EN.filter(w=>w.category===cat).map(w=>w.word)):null;const sc=pool.filter(w=>w.word!==item.word&&w.meaning.toLowerCase()!==correct&&(!cw||cw.has(w.meaning)));const fb=pool.filter(w=>w.word!==item.word&&w.meaning.toLowerCase()!==correct);const s=sc.length>=3?sc:fb;return shuffle(s).slice(0,3).map(w=>w.meaning);}
+    else{const correct=item.meaning.toLowerCase();const ref=dbEn.find(w=>w.word.toLowerCase()===correct);const cat=ref?ref.category:null;const cw=cat?new Set(dbEn.filter(w=>w.category===cat).map(w=>w.word)):null;const sc=pool.filter(w=>w.word!==item.word&&w.meaning.toLowerCase()!==correct&&(!cw||cw.has(w.meaning)));const fb=pool.filter(w=>w.word!==item.word&&w.meaning.toLowerCase()!==correct);const s=sc.length>=3?sc:fb;return shuffle(s).slice(0,3).map(w=>w.meaning);}
   }
 
   function startQuiz(retryItems){
@@ -98,7 +324,7 @@ function VocabModule(){
   const curCat=useMemo(()=>{
     if(!cur)return'—';
     if(mode==='en')return cur.category||'—';
-    const r=DB_EN.find(w=>w.word.toLowerCase()===cur.meaning.toLowerCase());
+    const r=dbEn.find(w=>w.word.toLowerCase()===cur.meaning.toLowerCase());
     return r?r.category:'—';
   },[cur,mode]);
 
@@ -232,11 +458,13 @@ function VocabModule(){
           </div>))}
         </div>
         <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:11}}>
-          <button onClick={()=>setScr("config")} style={{padding:13,border:`2px solid ${C.border}`,borderRadius:11,background:'#fff',fontFamily:"'DM Sans',sans-serif",fontSize:'0.85rem',fontWeight:700,color:C.textDark,cursor:'pointer'}}>← Kuis Baru</button>
-          {wrongs.length>0&&<button onClick={()=>startQuiz(wrongs.map(w=>w.item))} style={{padding:13,border:`2px solid ${C.sage}`,borderRadius:11,background:C.sage,fontFamily:"'DM Sans',sans-serif",fontSize:'0.85rem',fontWeight:700,color:'#fff',cursor:'pointer'}}>Ulangi yang Salah</button>}
+          <button onClick={async ()=>{await saveVocabScore();setScr("config");}} style={{padding:13,border:`2px solid ${C.border}`,borderRadius:11,background:'#fff',fontFamily:"'DM Sans',sans-serif",fontSize:'0.85rem',fontWeight:700,color:C.textDark,cursor:'pointer'}}>← Kuis Baru</button>
+          {wrongs.length>0&&<button onClick={async ()=>{await saveVocabScore();startQuiz(wrongs.map(w=>w.item));}} style={{padding:13,border:`2px solid ${C.sage}`,borderRadius:11,background:C.sage,fontFamily:"'DM Sans',sans-serif",fontSize:'0.85rem',fontWeight:700,color:'#fff',cursor:'pointer'}}>Ulangi yang Salah</button>}
         </div>
       </div>
     </div>);
+    // Setelah quiz selesai, save score
+
   }
   return null;
 }
@@ -455,7 +683,7 @@ function HighlightedText({content,vocabList,dark:dk}){
   return(
     <div onClick={()=>setTip(null)}>
       {content.split("\n\n").map((p,i)=>(
-        <p key={i} style={{fontSize:18,lineHeight:1.85,marginBottom:24,color:tc,fontFamily:"'Source Serif 4','Georgia',serif",letterSpacing:"0.01em",transition:"color .3s"}}>
+        <p key={i} style={{fontSize:18,lineHeight:1.6,marginBottom:18,color:tc,fontFamily:"'Source Serif 4','Georgia',serif",letterSpacing:"0.015em",transition:"color .3s"}}>
           {i===0&&<span style={{float:"left",fontSize:58,lineHeight:"48px",paddingRight:8,paddingTop:6,fontFamily:"'Playfair Display',serif",fontWeight:900,color:dc,transition:"color .3s"}}>{p.charAt(0)}</span>}
           {renderP(i===0?p.slice(1):p,i)}
         </p>
@@ -466,11 +694,128 @@ function HighlightedText({content,vocabList,dark:dk}){
 }
 
 // ═══════════════════════════════════════
+// VOCAB PRACTICE TAB
+// ═══════════════════════════════════════
+function VocabPracticeTab({vl, dark:dk, C, txtP, txtS, bdgBg, bgCard, bdrC}){
+  const [sentences, setSentences] = useState({});
+  const [submitted, setSubmitted] = useState({});
+  const [allSubmitted, setAllSubmitted] = useState(false);
+
+  const inputBg = dk ? "#1a1a1a" : "#fff";
+  const inputBdr = dk ? "#333" : "#d8d3c8";
+  const cardBg = (i) => i % 2 === 0 ? bgCard : (dk ? "#222" : "#f9f6f0");
+  const bdr = "1px solid " + (dk ? "#2a2a2a" : "#e8e2d8");
+  const mutedClr = dk ? "rgba(240,236,228,0.45)" : "#888";
+  const allFilled = vl.length > 0 && vl.every(v => sentences[v.vid || v.word]?.trim());
+
+  const handleSend = (vid) => {
+    if (sentences[vid]?.trim()) {
+      setSubmitted(p => ({ ...p, [vid]: true }));
+    }
+  };
+
+  const handleEdit = (vid) => {
+    setSubmitted(p => ({ ...p, [vid]: false }));
+  };
+
+  return (
+    <div>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:20}}>
+        <h3 style={{fontFamily:"'Playfair Display',serif",fontSize:24,color:txtP,margin:0}}>Vocabulary List</h3>
+        <span style={{fontSize:12,color:mutedClr}}>{Object.values(submitted).filter(Boolean).length}/{vl.length} kalimat</span>
+      </div>
+
+      <div style={{background:dk?"#1e1c18":"#fef9ef",borderRadius:8,padding:"12px 16px",marginBottom:24,fontSize:13,color:dk?"#c9a84c":"#6b5634",borderLeft:"4px solid #c9a84c",lineHeight:1.5}}>
+        ✏️ <strong>Latihan:</strong> Buat satu kalimat sendiri dari setiap kata vocab di bawah, lalu klik <strong>↑</strong> untuk menyimpan.
+      </div>
+
+      <div style={{display:"flex",flexDirection:"column",gap:16}}>
+        {vl.map((v, i) => {
+          const vid = v.vid || v.word;
+          const isSub = submitted[vid];
+          const sent = sentences[vid] || "";
+          const hasSent = sent.trim().length > 0;
+
+          return (
+            <div key={vid} style={{background:cardBg(i),border:bdr,borderRadius:10,padding:"18px 22px",borderLeft:isSub?"4px solid #2d6a4f":"4px solid #c9a84c",transition:"all .2s"}}>
+              {/* Word header */}
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"baseline",marginBottom:6}}>
+                <div style={{display:"flex",alignItems:"baseline",gap:10}}>
+                  <span style={{fontFamily:"'Playfair Display',serif",fontSize:20,fontWeight:700,color:txtP}}>{v.word}</span>
+                  {v.pos&&<span style={{fontSize:10,fontWeight:700,textTransform:"uppercase",color:"#8b7355",background:bdgBg,padding:"3px 10px",borderRadius:4}}>{v.pos}</span>}
+                </div>
+                {isSub&&<span style={{fontSize:11,color:"#2d6a4f",fontWeight:700}}>✓ Tersimpan</span>}
+              </div>
+              <div style={{fontSize:15,fontWeight:600,color:C.gold,marginBottom:8}}>{v.translation}</div>
+              {v.context&&<div style={{fontSize:13,fontStyle:"italic",color:mutedClr,lineHeight:1.5,marginBottom:12,paddingBottom:10,borderBottom:"1px solid "+(dk?"#2a2a2a":"#eee")}}>"{v.context}"</div>}
+
+              {/* Sentence input */}
+              <div style={{marginTop:8}}>
+                <div style={{fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.08em",color:mutedClr,marginBottom:6}}>Buat kalimatmu:</div>
+                <div style={{display:"flex",gap:8,alignItems:"flex-start"}}>
+                  {isSub ? (
+                    <div style={{flex:1,padding:"10px 14px",background:dk?"#1a2a1a":"#f0f9f0",border:"2px solid #2d6a4f",borderRadius:8,fontSize:14,lineHeight:1.5,color:dk?"#a3d9a5":"#1b4332",fontFamily:"'Source Serif 4',serif",minHeight:44}}>
+                      {sent}
+                    </div>
+                  ) : (
+                    <textarea
+                      value={sent}
+                      onChange={e => setSentences(p => ({...p, [vid]: e.target.value}))}
+                      placeholder={`Tulis kalimat menggunakan "${v.word}"...`}
+                      rows={2}
+                      style={{flex:1,padding:"10px 14px",background:inputBg,border:"1.5px solid "+(hasSent?"#c9a84c":inputBdr),borderRadius:8,fontSize:14,fontFamily:"'Source Serif 4',serif",color:dk?"#e8e4dc":"#1a1a1a",resize:"vertical",outline:"none",lineHeight:1.5,transition:"border .2s"}}
+                    />
+                  )}
+                  <button
+                    onClick={() => isSub ? handleEdit(vid) : handleSend(vid)}
+                    disabled={!isSub && !hasSent}
+                    title={isSub ? "Klik untuk edit" : "Simpan kalimat"}
+                    style={{width:40,height:40,borderRadius:"50%",border:"none",cursor:(!isSub&&!hasSent)?"not-allowed":"pointer",background:isSub?"#2d6a4f":hasSent?"#c9a84c":"#d0c9bc",color:"#fff",fontSize:16,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,transition:"all .2s",boxShadow:"0 2px 8px rgba(0,0,0,0.12)"}}
+                  >
+                    {isSub ? "✏" : "↑"}
+                  </button>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Submit all */}
+      <div style={{marginTop:32,paddingTop:24,borderTop:"2px solid "+(dk?"#333":"#e8e2d8"),textAlign:"center"}}>
+        {allSubmitted ? (
+          <div style={{background:dk?"#1a2a1a":"#f0f9f0",border:"2px solid #2d6a4f",borderRadius:12,padding:"20px 24px"}}>
+            <div style={{fontSize:28,marginBottom:8}}>🎉</div>
+            <div style={{fontFamily:"'Playfair Display',serif",fontSize:20,fontWeight:700,color:dk?"#a3d9a5":"#1b4332",marginBottom:4}}>Latihan Selesai!</div>
+            <div style={{fontSize:14,color:mutedClr}}>{Object.values(submitted).filter(Boolean).length} dari {vl.length} kalimat dibuat.</div>
+          </div>
+        ) : (
+          <>
+            <button
+              onClick={() => setAllSubmitted(true)}
+              disabled={!allFilled}
+              style={{padding:"14px 40px",background:allFilled?"#1a1a1a":"#d0c9bc",color:"#fff",border:"none",borderRadius:10,fontWeight:700,fontSize:15,cursor:allFilled?"pointer":"not-allowed",fontFamily:"'Source Sans 3',sans-serif",transition:"all .2s",boxShadow:allFilled?"0 4px 16px rgba(0,0,0,0.2)":"none"}}
+            >
+              ✓ Submit Latihan
+            </button>
+            {!allFilled&&<p style={{fontSize:12,color:mutedClr,marginTop:8}}>Isi semua kalimat dulu sebelum submit</p>}
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════
 // READING QUIZ
 // ═══════════════════════════════════════
-function ReadingQuiz({questions,dark:dk}){
+function ReadingQuiz({questions,dark:dk,onAnswersChange}){
   const [ans,setAns]=useState({});
   const [done,setDone]=useState(false);
+  // Notify parent when answers change
+  useEffect(() => {
+    if (onAnswersChange) onAnswersChange(ans);
+  }, [ans, onAnswersChange]);
   const sc=useMemo(()=>done?questions.reduce((a,q)=>a+(ans[q.qid]===q.answer?1:0),0):0,[done,ans,questions]);
   const qBg=dk?"#1a1a1a":"#f5f1ea";const qBdr=dk?"#2a2a2a":"#e0d9cd";const qTxt=dk?"#f0ece4":"#1a1a1a";
   const oBg=dk?"#242424":"#fff";const oBdr=dk?"#333":"#d8d3c8";const oClr=dk?"#d4cfc8":"#333";
@@ -596,7 +941,10 @@ function AddArticleWizard({onCancel,onSave,existingIds}){
 // ═══════════════════════════════════════
 // READING MODULE
 // ═══════════════════════════════════════
-function ReadingModule(){
+function ReadingModule({ supabase, currentUser }){
+  console.log("🔵 ReadingModule mounted");
+  console.log("supabase:", supabase);
+  console.log("currentUser:", currentUser);
   const [articles,setArticles]=useState(INIT_ARTICLES);
   const [artVocab,setArtVocab]=useState(INIT_AV);
   const [rdQuiz,setRdQuiz]=useState(INIT_QUIZ);
@@ -609,13 +957,87 @@ function ReadingModule(){
   const [checked,setChecked]=useState(new Set());
   const [editing,setEditing]=useState(null);
   const [editVal,setEditVal]=useState("");
+  const [sheetsStatus,setSheetsStatus]=useState("idle"); // idle|loading|ok|error
+  const [uploadStatus,setUploadStatus]=useState("");
+  const [readingAns, setReadingAns] = useState({});
+  const [langMode, setLangMode] = useState("en"); // "en"|"id" body language toggle
+  const [featuredIds, setFeaturedIds] = useState(new Set(["A1","A2","A3"])); // Featured top articles
+  const [levelFilter, setLevelFilter] = useState("all"); // Level filter A/B/C/D/all
+
+  // Fetch from Google Sheets on mount — 3 sheets: articles, vocab, quiz_article
+  useEffect(()=>{
+    if(!GOOGLE_API_KEY||!SHEETS_ID){setSheetsStatus("idle");return;}
+    setSheetsStatus("loading");
+    Promise.all([
+      fetchSheet(SHEET_ARTICLES),
+      fetchSheet(SHEET_RD_VOCAB),
+      fetchSheet(SHEET_RD_QUIZ)
+    ]).then(([artRows,vocabRows,quizRows])=>{
+      const {articles:a} = parseArticlesSheet(artRows||[]);
+      const v = parseVocabSheetNew(vocabRows||[]);
+      const q = parseQuizSheetNew(quizRows||[]);
+      if(a.length>0){setArticles(a);setArtVocab(v);setRdQuiz(q);}
+      console.log(`✅ Sheets loaded: ${a.length} articles, ${v.length} vocab, ${q.length} quiz`);
+      setSheetsStatus("ok");
+    }).catch(e=>{
+      console.error("❌ Sheets error:", e);
+      setSheetsStatus("error");
+    });
+  },[]);
+
+  // Admin: upload Excel for articles
+  const handleArticleUpload=async(file)=>{
+    setUploadStatus("Memproses file...");
+    try{
+      let rows;
+      if(file.name.endsWith(".csv")){
+        rows=await parseCsvFile(file);
+      }else{
+        const sheets=await parseExcelFile(file);
+        // Use first sheet
+        const firstSheet=Object.values(sheets)[0];
+        rows=firstSheet;
+      }
+      if(!rows||!rows.length){setUploadStatus("❌ File kosong atau format tidak sesuai.");return;}
+      // Normalize headers to lowercase
+      rows=rows.map(r=>{const o={};Object.keys(r).forEach(k=>{o[k.trim().toLowerCase().replace(/\s+/g,"_")]=String(r[k]||"").trim();});return o;});
+      const {articles:a,vocab:v,quiz:q}=parseArticlesSheet(rows);
+      if(a.length===0){setUploadStatus("❌ Tidak ada artikel valid ditemukan. Pastikan ada kolom: id, title, body");return;}
+      // If Sheets configured, try to append
+      if(GOOGLE_API_KEY&&SHEETS_ID){
+        setUploadStatus("Mengirim ke Google Sheets...");
+        const artHeaders=["id","title","topics","level","body","image_url",
+          ...Array.from({length:10},(_,i)=>[`vocab_${i+1}`,`trans_${i+1}`,`pos_${i+1}`,`context_${i+1}`]).flat(),
+          ...Array.from({length:5},(_,i)=>[`q${i+1}_question`,`q${i+1}_a`,`q${i+1}_b`,`q${i+1}_c`,`q${i+1}_d`,`q${i+1}_answer`]).flat()
+        ];
+        try{
+          await appendToSheet(SHEET_ARTICLES,artHeaders,rows);
+          setUploadStatus(`✅ ${a.length} artikel berhasil dikirim ke Google Sheets!`);
+        }catch(e){
+          setUploadStatus(`⚠ Tersimpan lokal. Gagal kirim ke Sheets: ${e.message}`);
+        }
+      }else{
+        setUploadStatus(`✅ ${a.length} artikel dimuat (lokal).`);
+      }
+      // Update local state
+      setArticles(prev=>[...prev,...a]);
+      setArtVocab(prev=>[...prev,...v]);
+      setRdQuiz(prev=>[...prev,...q]);
+    }catch(e){
+      setUploadStatus(`❌ Error: ${e.message}`);
+    }
+  };
 
   const dk=dark;
   const lc={A:"#2d6a4f",B:"#c9a84c",C:"#c1554d",D:"#6b21a8"};
   const ll={A:"Beginner",B:"Intermediate",C:"Advanced",D:"Expert"};
   const gv=aid=>artVocab.filter(v=>v.aid===aid);
   const gq=aid=>rdQuiz.filter(q=>q.aid===aid);
-  const filt=cat==="all"?articles:articles.filter(a=>a.topics.toLowerCase().includes(cat.toLowerCase()));
+  const filt=useMemo(()=>{
+    let f=cat==="all"?articles:articles.filter(a=>a.topics.toLowerCase().includes(cat.toLowerCase()));
+    if(levelFilter!=="all") f=f.filter(a=>a.level===levelFilter);
+    return f;
+  },[articles,cat,levelFilter]);
 
   const delChecked=()=>{if(checked.size===0)return;setArticles(p=>p.filter(a=>!checked.has(a.id)));setArtVocab(p=>p.filter(v=>!checked.has(v.aid)));setRdQuiz(p=>p.filter(q=>!checked.has(q.aid)));setChecked(new Set());};
   const togCheck=id=>setChecked(p=>{const n=new Set(p);n.has(id)?n.delete(id):n.add(id);return n;});
@@ -641,6 +1063,34 @@ function ReadingModule(){
   const hintBg=dk?"rgba(201,168,76,0.1)":"#f0ece4";
   const footBg=dk?"#070707":"#1a1a1a";
 
+  // Save reading progress to database
+  const saveReadingProgress = async () => {
+  console.log("✅ STEP 1: saveReadingProgress called");
+  console.log("✅ STEP 2: supabase =", supabase);
+  console.log("✅ STEP 3: currentUser =", currentUser);
+  console.log("✅ STEP 4: selArt =", selArt);
+  
+  if (!supabase || !currentUser || !selArt) {
+    console.log("Missing required data, returning");
+    return;
+  }
+  
+  try {
+      const vocabCount = gv(selArt.id).length;
+      const quizCount = Object.keys(readingAns || {}).length;
+      
+      await supabase.from("reading_progress").insert({
+        user_id: currentUser.id,
+        article_id: selArt.id,
+        vocab_completed: vocabCount,
+        quiz_answered: quizCount,
+        completed_at: new Date().toISOString()
+      });
+      console.log("✅ Reading progress saved!");
+    } catch (err) {
+      console.error("Error saving reading progress:", err);
+    }
+  };
   // ── ADD WIZARD ──
   if(showAdd)return(
     <div style={{minHeight:"100vh",background:"#faf7f2",fontFamily:"'Source Sans 3',sans-serif"}}>
@@ -672,7 +1122,7 @@ function ReadingModule(){
           <div style={{background:"#fff",borderRadius:12,overflow:"hidden",boxShadow:"0 4px 24px rgba(26,39,68,0.08)",border:"1px solid #e8e2d8"}}>
             <table style={{width:"100%",borderCollapse:"collapse"}}><thead><tr style={{background:"#f9f6f0"}}>
               <th style={{...th,width:40,textAlign:"center"}}><input type="checkbox" checked={checked.size===articles.length&&articles.length>0} onChange={togAll} style={{accentColor:C.gold,width:16,height:16,cursor:"pointer"}}/></th>
-              <th style={{...th,width:70}}>Code</th><th style={th}>Title</th><th style={{...th,width:110}}>Category</th><th style={{...th,width:70}}>Level</th><th style={{...th,width:60,textAlign:"center"}}>Vocab</th><th style={{...th,width:50,textAlign:"center"}}>Quiz</th>
+              <th style={{...th,width:70}}>Code</th><th style={th}>Title</th><th style={{...th,width:110}}>Category</th><th style={{...th,width:70}}>Level</th><th style={{...th,width:60,textAlign:"center"}}>Vocab</th><th style={{...th,width:50,textAlign:"center"}}>Quiz</th><th style={{...th,width:70,textAlign:"center"}}>Featured</th>
             </tr></thead><tbody>
               {articles.map((a,i)=>{const isSel=checked.has(a.id);return(
                 <tr key={a.id} style={{background:isSel?"#fef9ef":i%2===0?"#fff":"#fdfcf9"}}>
@@ -683,9 +1133,66 @@ function ReadingModule(){
                   <td style={td}><span style={{fontSize:11,fontWeight:700,color:lc[a.level]||"#888",background:(lc[a.level]||"#888")+"18",padding:"3px 10px",borderRadius:4}}>Level {a.level}</span></td>
                   <td style={{...td,textAlign:"center",fontWeight:600,fontSize:13}}>{gv(a.id).length}</td>
                   <td style={{...td,textAlign:"center",fontWeight:600,fontSize:13}}>{gq(a.id).length}</td>
+                  <td style={{...td,textAlign:"center"}}><button onClick={()=>setFeaturedIds(p=>{const n=new Set(p);n.has(a.id)?n.delete(a.id):n.size<3?n.add(a.id):null;return n;})} style={{padding:"4px 12px",background:featuredIds.has(a.id)?"#c9a84c":"#eee",color:featuredIds.has(a.id)?"#fff":"#999",border:"none",borderRadius:6,fontSize:11,fontWeight:700,cursor:"pointer"}}>{featuredIds.has(a.id)?"⭐ Yes":"No"}</button></td>
                 </tr>);})}
             </tbody></table>
             {articles.length===0&&<div style={{textAlign:"center",padding:"40px 20px",color:"#aaa"}}><div style={{fontSize:32,marginBottom:10}}>📭</div>No articles yet.</div>}
+          </div>
+
+          {/* SHEETS STATUS */}
+          <div style={{marginTop:20,padding:"14px 18px",background:sheetsStatus==="ok"?"#e6f4ea":sheetsStatus==="error"?"#fce8e6":"#f5f1ea",borderRadius:10,border:"1px solid "+(sheetsStatus==="ok"?"#a5d6a7":sheetsStatus==="error"?"#e8c0bc":"#e0d9cd")}}>
+            <div style={{fontSize:12,fontWeight:700,color:sheetsStatus==="ok"?"#2d6a4f":sheetsStatus==="error"?"#c1554d":"#8b7355",marginBottom:4}}>
+              {sheetsStatus==="ok"?"✅ Terhubung ke Google Sheets":sheetsStatus==="error"?"❌ Gagal terhubung ke Google Sheets":sheetsStatus==="loading"?"⏳ Menghubungkan ke Google Sheets...":"⚠ Google Sheets belum dikonfigurasi"}
+            </div>
+            <div style={{fontSize:11,color:"#888",lineHeight:1.5}}>
+              {(!GOOGLE_API_KEY||!SHEETS_ID)?"Isi GOOGLE_API_KEY dan SHEETS_ID di App.jsx untuk mengaktifkan sinkronisasi.":"Sheet ID: "+SHEETS_ID.slice(0,12)+"..."}
+            </div>
+          </div>
+
+          {/* UPLOAD ARTICLES */}
+          <div style={{marginTop:24,padding:"24px 22px",background:"#fff",borderRadius:12,border:"1px solid #e8e2d8",boxShadow:"0 2px 12px rgba(26,39,68,0.05)"}}>
+            <h3 style={{fontFamily:"'Playfair Display',serif",fontSize:18,marginBottom:4,color:"#1a1a1a"}}>📤 Import Artikel dari Excel/CSV</h3>
+            <p style={{fontSize:12,color:"#888",marginBottom:14,lineHeight:1.5}}>Upload file Excel (.xlsx) atau CSV dengan kolom: <strong>id, title, topics, level, body, image_url, vocab_1, trans_1, pos_1, context_1, ... vocab_10, trans_10, pos_10, context_10, q1_question, q1_a, q1_b, q1_c, q1_d, q1_answer, ... q5_answer</strong></p>
+            <div style={{display:"flex",gap:12,alignItems:"center",flexWrap:"wrap"}}>
+              <label style={{padding:"10px 20px",background:"#1a1a1a",color:"#fff",borderRadius:8,fontSize:13,fontWeight:700,cursor:"pointer",display:"inline-flex",alignItems:"center",gap:6}}>
+                📁 Pilih File
+                <input type="file" accept=".xlsx,.xls,.csv" style={{display:"none"}} onChange={e=>{if(e.target.files[0])handleArticleUpload(e.target.files[0]);e.target.value="";}}/>
+              </label>
+              {uploadStatus&&<span style={{fontSize:13,color:uploadStatus.startsWith("✅")?"#2d6a4f":uploadStatus.startsWith("❌")?"#c1554d":"#8b7355"}}>{uploadStatus}</span>}
+            </div>
+          </div>
+
+          {/* UPLOAD VOCAB QUIZ */}
+          <div style={{marginTop:16,padding:"24px 22px",background:"#fff",borderRadius:12,border:"1px solid #e8e2d8",boxShadow:"0 2px 12px rgba(26,39,68,0.05)"}}>
+            <h3 style={{fontFamily:"'Playfair Display',serif",fontSize:18,marginBottom:4,color:"#1a1a1a"}}>🔤 Import Vocab Quiz dari Excel/CSV</h3>
+            <p style={{fontSize:12,color:"#888",marginBottom:14,lineHeight:1.5}}>Upload file dengan kolom: <strong>word_en, translation_id, category</strong> (Verb/Noun/Adjective). Kata baru akan ditambahkan ke database vocab quiz.</p>
+            <div style={{display:"flex",gap:12,alignItems:"center",flexWrap:"wrap"}}>
+              <label style={{padding:"10px 20px",background:C.sage,color:"#fff",borderRadius:8,fontSize:13,fontWeight:700,cursor:"pointer",display:"inline-flex",alignItems:"center",gap:6}}>
+                📁 Pilih File Vocab
+                <input type="file" accept=".xlsx,.xls,.csv" style={{display:"none"}} onChange={async e=>{
+                  const f=e.target.files[0];if(!f)return;e.target.value="";
+                  setUploadStatus("Memproses vocab...");
+                  try{
+                    let rows;
+                    if(f.name.endsWith(".csv")){rows=await parseCsvFile(f);}
+                    else{const sh=await parseExcelFile(f);rows=Object.values(sh)[0];}
+                    if(!rows||!rows.length){setUploadStatus("❌ File kosong.");return;}
+                    rows=rows.map(r=>{const o={};Object.keys(r).forEach(k=>{o[k.trim().toLowerCase().replace(/\s+/g,"_")]=String(r[k]||"").trim();});return o;});
+                    const parsed=parseVocabSheet(rows);
+                    if(!parsed.length){setUploadStatus("❌ Tidak ada vocab valid. Pastikan kolom: word_en, translation_id, category");return;}
+                    // If Sheets configured, append
+                    if(GOOGLE_API_KEY&&SHEETS_ID){
+                      setUploadStatus("Mengirim ke Google Sheets...");
+                      try{await appendToSheet(SHEET_VOCAB,["word_en","translation_id","category"],rows);setUploadStatus(`✅ ${parsed.length} kata berhasil dikirim ke Sheets!`);}
+                      catch(err){setUploadStatus(`⚠ Lokal OK. Sheets error: ${err.message}`);}
+                    }else{setUploadStatus(`✅ ${parsed.length} kata dimuat (lokal).`);}
+                    // Dispatch event to update VocabModule
+                    window.__vocabUpdate=parsed;
+                    window.dispatchEvent(new Event("vocabUpdate"));
+                  }catch(err){setUploadStatus(`❌ Error: ${err.message}`);}
+                }}/>
+              </label>
+            </div>
           </div>
         </div>
       </div>
@@ -699,9 +1206,17 @@ function ReadingModule(){
       <div style={{minHeight:"100vh",background:dk?"#111":"#faf7f2",fontFamily:"'Source Sans 3',sans-serif",transition:"background .3s"}}>
         <div style={{position:"sticky",top:48,zIndex:100,background:dk?"rgba(17,17,17,0.97)":"rgba(250,247,242,0.95)",backdropFilter:"blur(10px)",borderBottom:`1px solid ${bdrC}`,padding:"12px 0"}}>
           <div style={{maxWidth:780,margin:"0 auto",padding:"0 24px",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
-            <button onClick={()=>{setSelArt(null);setArtTab("read");}} style={{background:"none",border:"none",cursor:"pointer",fontSize:14,fontWeight:600,color:"#8b7355",fontFamily:"'Source Sans 3',sans-serif"}}>← Back</button>
+           <button onClick={async ()=>{
+  await saveReadingProgress();
+  setSelArt(null);
+  setArtTab("read");
+}} style={{background:"none",border:"none",cursor:"pointer",fontSize:14,fontWeight:600,color:"#8b7355",fontFamily:"'Source Sans 3',sans-serif"}}>← Back</button>
             <div style={{display:"flex",gap:8,alignItems:"center"}}>
               <button onClick={()=>setDark(d=>!d)} style={{padding:"5px 12px",background:dk?"#2a2a2a":"#f0ece4",border:`1px solid ${dk?"#444":"#d8d3c8"}`,borderRadius:6,fontSize:12,cursor:"pointer",color:dk?"#e8c87a":"#8b7355",fontWeight:600,fontFamily:"'Source Sans 3',sans-serif"}}>{dk?"☀":"🌙"}</button>
+              {selArt.body_idn&&<div style={{display:"flex",background:dk?"#2a2a2a":"#e8e2d8",borderRadius:6,padding:2,gap:1}}>
+                <button onClick={()=>setLangMode("en")} style={{padding:"4px 10px",background:langMode==="en"?(dk?"#555":"#fff"):"transparent",border:"none",borderRadius:4,cursor:"pointer",fontSize:11,fontWeight:langMode==="en"?700:500,color:langMode==="en"?"#1a1a1a":"#888",transition:"all .15s"}}>🇬🇧 EN</button>
+                <button onClick={()=>setLangMode("id")} style={{padding:"4px 10px",background:langMode==="id"?(dk?"#555":"#fff"):"transparent",border:"none",borderRadius:4,cursor:"pointer",fontSize:11,fontWeight:langMode==="id"?700:500,color:langMode==="id"?"#1a1a1a":"#888",transition:"all .15s"}}>🇮🇩 ID</button>
+              </div>}
               <div style={{display:"flex",background:dk?"#2a2a2a":"#e8e2d8",borderRadius:8,padding:3}}>
                 {[{id:"read",label:"Read",icon:"📖"},{id:"vocab",label:"Vocabulary ("+vl.length+")",icon:"📝"},{id:"quiz",label:"Quiz ("+ql.length+")",icon:"🧠"}].map(t=>(
                   <button key={t.id} onClick={()=>setArtTab(t.id)} style={{background:artTab===t.id?bgCard:"transparent",border:"none",borderRadius:6,padding:"6px 14px",cursor:"pointer",fontSize:12,fontWeight:artTab===t.id?700:500,color:artTab===t.id?txtP:"#888",fontFamily:"'Source Sans 3',sans-serif",boxShadow:artTab===t.id?"0 1px 3px rgba(0,0,0,0.08)":"none",transition:"all .15s"}}>{t.icon} {t.label}</button>
@@ -713,10 +1228,17 @@ function ReadingModule(){
         <article style={{maxWidth:780,margin:"0 auto",padding:"40px 24px 80px"}}>
           <span style={{fontSize:12,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.14em",color:"#8b7355"}}>{selArt.topics}</span>
           <h1 style={{fontSize:42,fontWeight:700,lineHeight:1.1,margin:"16px 0 20px",fontFamily:"'Playfair Display',serif",color:txtP,transition:"color .3s"}}>{selArt.title}</h1>
-          <div style={{display:"flex",alignItems:"center",gap:8,paddingBottom:24,borderBottom:"1px solid "+bdrC,marginBottom:32}}>
-            <span style={{fontSize:10,fontWeight:700,textTransform:"uppercase",color:lc[selArt.level]||"#888",background:(lc[selArt.level]||"#888")+"22",padding:"4px 12px",borderRadius:4}}>Level {selArt.level} · {ll[selArt.level]||""}</span>
-            <span style={{fontSize:13,color:txtM}}>·</span><span style={{fontSize:13,color:txtS}}>{vl.length} vocabulary</span>
-            <span style={{fontSize:13,color:txtM}}>·</span><span style={{fontSize:13,color:txtS}}>{ql.length} quiz</span>
+          <div style={{paddingBottom:24,borderBottom:"1px solid "+bdrC,marginBottom:32}}>
+            <div style={{display:"flex",flexWrap:"wrap",alignItems:"center",gap:8,marginBottom:10}}>
+              <span style={{fontSize:10,fontWeight:700,textTransform:"uppercase",color:lc[selArt.level]||"#888",background:(lc[selArt.level]||"#888")+"22",padding:"4px 12px",borderRadius:4}}>Level {selArt.level} · {ll[selArt.level]||""}</span>
+              {selArt.word_count&&<span style={{fontSize:11,color:txtM,background:dk?"#2a2a2a":"#f0ece4",padding:"3px 10px",borderRadius:4}}>{selArt.word_count} words</span>}
+              <span style={{fontSize:11,color:"#8b7355",background:bdgBg,padding:"3px 10px",borderRadius:4}}>{vl.length} vocab · {ql.length} quiz</span>
+            </div>
+            <div style={{display:"flex",flexWrap:"wrap",gap:16,fontSize:13,color:txtS}}>
+              {selArt.writers&&<span>✍ {selArt.writers}</span>}
+              {selArt.source&&<span>📰 {selArt.source}</span>}
+              {selArt.date&&<span>🗓 {String(selArt.date).split("T")[0]}</span>}
+            </div>
           </div>
           <div style={{marginBottom:36,borderRadius:6,overflow:"hidden"}}><img src={selArt.image} alt="" style={{width:"100%",height:380,objectFit:"cover",filter:dk?"grayscale(30%) brightness(0.75)":"grayscale(8%)",transition:"filter .3s"}}/></div>
 
@@ -724,30 +1246,33 @@ function ReadingModule(){
             <div style={{background:hintBg,borderRadius:8,padding:"14px 18px",marginBottom:36,display:"flex",alignItems:"center",gap:10,fontSize:14,color:dk?"#c9a84c":"#6b5634",borderLeft:"4px solid #c9a84c"}}>
               <span style={{fontSize:18}}>📖</span><span><strong>{vl.length} kata penting</strong> ter-highlight di artikel ini. Klik kata bergaris bawah untuk melihat artinya.</span>
             </div>
-            <HighlightedText content={selArt.body} vocabList={vl} dark={dk}/>
+            {langMode==="id"&&selArt.body_idn?(
+              <div>
+                <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:20,padding:"10px 14px",background:dk?"#1a2a1a":"#f0f9f0",borderRadius:8,border:"1px solid #2d6a4f44"}}>
+                  <span>🇮🇩</span>
+                  <span style={{fontSize:12,color:dk?"#a3d9a5":"#2d6a4f",fontWeight:600}}>Membaca dalam Bahasa Indonesia</span>
+                  <button onClick={()=>setLangMode("en")} style={{marginLeft:"auto",fontSize:11,color:"#8b7355",background:"none",border:"1px solid #c9a84c",borderRadius:4,padding:"3px 8px",cursor:"pointer"}}>Switch ke 🇬🇧 EN</button>
+                </div>
+                {selArt.body_idn.split(/\n\n+|\n/).map(p=>p.trim()).filter(p=>p.length>0).map((p,i)=>(
+                  <p key={i} style={{fontSize:18,lineHeight:1.7,marginBottom:22,color:dk?"#d4cfc8":"#2a2a2a",fontFamily:"'Source Serif 4','Georgia',serif",letterSpacing:"0.01em"}}>{p}</p>
+                ))}
+              </div>
+            ):(
+              <HighlightedText content={selArt.body} vocabList={vl} dark={dk}/>
+            )}
           </div>}
 
-          {artTab==="vocab"&&<div>
-            <h3 style={{fontFamily:"'Playfair Display',serif",fontSize:24,marginBottom:20,color:txtP}}>Vocabulary List</h3>
-            <div style={{display:"flex",flexDirection:"column",gap:12}}>
-              {vl.map((v,i)=>(<div key={v.vid||i} style={{background:i%2===0?bgCard:(dk?"#222":"#f9f6f0"),border:"1px solid "+(dk?"#2a2a2a":"#e8e2d8"),borderRadius:10,padding:"18px 22px",transition:"background .3s"}}>
-                <div style={{display:"flex",justifyContent:"space-between",alignItems:"baseline",marginBottom:6}}>
-                  <span style={{fontFamily:"'Playfair Display',serif",fontSize:20,fontWeight:700,color:txtP}}>{v.word}</span>
-                  <span style={{fontSize:10,fontWeight:700,textTransform:"uppercase",color:"#8b7355",background:bdgBg,padding:"3px 10px",borderRadius:4}}>{v.pos}</span>
-                </div>
-                <div style={{fontSize:16,fontWeight:600,color:C.gold,marginBottom:8}}>{v.translation}</div>
-                {v.context&&<div style={{fontSize:14,fontStyle:"italic",color:dk?"rgba(240,236,228,0.45)":"#888",lineHeight:1.5,paddingTop:8,borderTop:"1px solid "+(dk?"#2a2a2a":"#eee")}}>"{v.context}"</div>}
-              </div>))}
-            </div>
-          </div>}
-          {artTab==="quiz"&&<ReadingQuiz questions={ql} dark={dk}/>}
+          {artTab==="vocab"&&<VocabPracticeTab vl={vl} dark={dk} C={C} txtP={txtP} txtS={txtS} bdgBg={bdgBg} bgCard={bgCard} bdrC={bdrC}/>}
+          {artTab==="quiz"&&<ReadingQuiz questions={ql} dark={dk} onAnswersChange={setReadingAns}/>}
         </article>
-        <TranslatePanel dark={dk} apiKey={GOOGLE_TRANSLATE_KEY}/>
+        <TranslatePanel dark={dk} apiKey={GOOGLE_API_KEY}/>
       </div>
     );
   }
 
   // ── READING HOME ──
+  const featured=articles.filter(a=>featuredIds.has(a.id));
+  const nonFeatured=filt.filter(a=>!featuredIds.has(a.id));
   return(
     <div style={{minHeight:"100vh",background:bg,fontFamily:"'Source Sans 3',sans-serif",transition:"background .3s"}}>
       <div style={{textAlign:"center",padding:"36px 24px 8px",borderBottom:dk?"3px double #444":"3px double #1a1a1a",maxWidth:1100,margin:"0 auto"}}>
@@ -756,32 +1281,52 @@ function ReadingModule(){
         <div style={{fontSize:13,color:txtM,fontFamily:"'Source Serif 4',serif",fontStyle:"italic",marginBottom:10}}>Baca, pelajari, dan perkaya kosakata Inggrismu</div>
       </div>
       <div style={{position:"sticky",top:48,zIndex:150,background:navBg,backdropFilter:"blur(8px)",borderBottom:"1px solid "+(dk?"#2a2a2a":"#e0dcd5")}}>
-        <div style={{maxWidth:1100,margin:"0 auto",padding:"0 24px",display:"flex",gap:2,overflowX:"auto",alignItems:"center"}}>
-          {RD_CATS.map(c=>(<button key={c.id} onClick={()=>setCat(c.id)} style={{background:cat===c.id?navBtnBg:"none",color:cat===c.id?navBtnClr:navInact,border:"none",cursor:"pointer",padding:"12px 20px",fontSize:13,fontWeight:600,letterSpacing:"0.05em",textTransform:"uppercase",borderRadius:cat===c.id?"6px 6px 0 0":0,transition:"all .2s",whiteSpace:"nowrap"}}>{c.label}</button>))}
-          <div style={{marginLeft:"auto",display:"flex",gap:8,alignItems:"center"}}>
+        <div style={{maxWidth:1100,margin:"0 auto",padding:"0 24px",display:"flex",gap:2,overflowX:"auto",WebkitOverflowScrolling:"touch",scrollbarWidth:"none",alignItems:"center"}}>
+          {RD_CATS.map(c=>(<button key={c.id} onClick={()=>setCat(c.id)} style={{background:cat===c.id?navBtnBg:"none",color:cat===c.id?navBtnClr:navInact,border:"none",cursor:"pointer",padding:"12px 20px",fontSize:13,fontWeight:600,letterSpacing:"0.05em",textTransform:"uppercase",borderRadius:cat===c.id?"6px 6px 0 0":0,transition:"all .2s",whiteSpace:"nowrap",flexShrink:0}}>{c.label}</button>))}
+          <div style={{marginLeft:"auto",display:"flex",gap:8,alignItems:"center",flexShrink:0}}>
+            <select value={levelFilter} onChange={e=>setLevelFilter(e.target.value)} style={{padding:"7px 12px",background:dk?"#2a2a2a":"#f0ece4",border:"1.5px solid "+(dk?"#444":"#d8d3c8"),borderRadius:7,fontSize:12,fontWeight:600,color:dk?"#e8c87a":"#8b7355",cursor:"pointer",fontFamily:"'Source Sans 3',sans-serif",outline:"none"}}>
+              <option value="all">All Levels</option>
+              <option value="A">Level A · Beginner</option>
+              <option value="B">Level B · Intermediate</option>
+              <option value="C">Level C · Advanced</option>
+              <option value="D">Level D · Expert</option>
+            </select>
             <button onClick={()=>setDark(d=>!d)} style={{padding:"7px 14px",background:dk?"#2a2a2a":"#f0ece4",border:"1.5px solid "+(dk?"#444":"#d8d3c8"),borderRadius:7,fontSize:13,cursor:"pointer",display:"flex",alignItems:"center",gap:5,color:dk?"#e8c87a":"#8b7355",fontWeight:600}}>{dk?"☀ Light":"🌙 Dark"}</button>
-            <button onClick={()=>setShowAdmin(true)} style={{padding:"7px 16px",background:"transparent",border:"1.5px solid "+(dk?"#444":"#d8d3c8"),borderRadius:7,fontSize:12,fontWeight:600,color:dk?"rgba(255,255,255,0.4)":"#8b7355",cursor:"pointer",display:"flex",alignItems:"center",gap:5}}>⚙ Admin</button>
+            {currentUser?.role==="admin"&&<button onClick={()=>setShowAdmin(true)} style={{padding:"7px 16px",background:"transparent",border:"1.5px solid "+(dk?"#444":"#d8d3c8"),borderRadius:7,fontSize:12,fontWeight:600,color:dk?"rgba(255,255,255,0.4)":"#8b7355",cursor:"pointer",display:"flex",alignItems:"center",gap:5}}>⚙ Admin</button>}
           </div>
         </div>
       </div>
-      <div style={{maxWidth:1100,margin:"0 auto",padding:"36px 24px 60px"}}>
-        {filt.length===0&&<div style={{textAlign:"center",padding:"60px 20px",color:txtM}}><div style={{fontSize:40,marginBottom:12}}>📭</div><div style={{fontSize:16,fontWeight:600,color:txtS}}>No articles in this category</div></div>}
-        {filt.map((a,i)=>{
-          const vc=gv(a.id).length,qc=gq(a.id).length;
-          if(i===0)return(
-            <div key={a.id} onClick={()=>setSelArt(a)} style={{display:"grid",gridTemplateColumns:"1.1fr 1fr",gap:36,marginBottom:40,paddingBottom:40,borderBottom:"2px solid "+bdrS,cursor:"pointer"}}>
-              <div style={{overflow:"hidden",borderRadius:4,aspectRatio:"4/3"}}><img src={a.image} alt="" style={{width:"100%",height:"100%",objectFit:"cover",filter:dk?"grayscale(30%) brightness(0.8)":"grayscale(10%)"}}/></div>
-              <div style={{display:"flex",flexDirection:"column",justifyContent:"center"}}>
-                <span style={{fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.12em",color:bdgClr,marginBottom:8}}>{a.topics}</span>
-                <div style={{display:"flex",gap:6,marginBottom:10}}>
+
+      {/* FEATURED CAROUSEL */}
+      {featured.length>0&&levelFilter==="all"&&cat==="all"&&<div style={{maxWidth:1100,margin:"0 auto",padding:"28px 24px 0"}}>
+        <div style={{fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.12em",color:bdgClr,marginBottom:14}}>⭐ Featured Stories</div>
+        <div style={{display:"flex",gap:20,overflowX:"auto",WebkitOverflowScrolling:"touch",scrollbarWidth:"none",paddingBottom:8,msOverflowStyle:"none"}}>
+          {featured.map(a=>{const vc=gv(a.id).length,qc=gq(a.id).length;return(
+            <div key={a.id} onClick={()=>setSelArt(a)} style={{minWidth:320,maxWidth:360,flex:"0 0 auto",cursor:"pointer",borderRadius:12,overflow:"hidden",background:bgCard,boxShadow:"0 6px 28px rgba(26,39,68,0.12)",transition:"transform .2s",border:"1px solid "+bdrC}} onMouseEnter={e=>e.currentTarget.style.transform="translateY(-4px)"} onMouseLeave={e=>e.currentTarget.style.transform="none"}>
+              <div style={{height:180,overflow:"hidden"}}><img src={a.image} alt="" style={{width:"100%",height:"100%",objectFit:"cover",filter:dk?"grayscale(30%) brightness(0.8)":"grayscale(10%)"}}/></div>
+              <div style={{padding:"18px 20px"}}>
+                <div style={{display:"flex",gap:6,marginBottom:8}}>
+                  <span style={{fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.1em",color:bdgClr}}>{a.topics}</span>
+                </div>
+                <div style={{display:"flex",gap:6,marginBottom:8}}>
                   <span style={{fontSize:10,fontWeight:700,color:lc[a.level]||"#888",background:(lc[a.level]||"#888")+"22",padding:"3px 10px",borderRadius:4}}>Level {a.level}</span>
                   <span style={{fontSize:10,fontWeight:600,color:bdgClr,background:bdgBg,padding:"3px 10px",borderRadius:4}}>{vc} vocab · {qc} quiz</span>
                 </div>
-                <h2 style={{fontSize:32,fontWeight:700,lineHeight:1.15,margin:"0 0 14px",fontFamily:"'Playfair Display',serif",color:txtP}}>{a.title}</h2>
-                <p style={{fontSize:15,lineHeight:1.5,color:txtS,margin:0,fontFamily:"'Source Serif 4',serif",display:"-webkit-box",WebkitLineClamp:3,WebkitBoxOrient:"vertical",overflow:"hidden"}}>{a.body.split("\n\n")[0]}</p>
+                <h3 style={{fontSize:18,fontWeight:700,lineHeight:1.25,margin:"0 0 8px",fontFamily:"'Playfair Display',serif",color:txtP}}>{a.title}</h3>
+                <p style={{fontSize:13,lineHeight:1.45,color:txtS,margin:0,fontFamily:"'Source Serif 4',serif",display:"-webkit-box",WebkitLineClamp:2,WebkitBoxOrient:"vertical",overflow:"hidden"}}>{a.body.split("\n\n")[0]}</p>
               </div>
-            </div>);
-          return(
+            </div>);})}
+        </div>
+      </div>}
+
+      {/* ARTICLE LIST */}
+      <div style={{maxWidth:1100,margin:"0 auto",padding:"36px 24px 60px"}}>
+        {(levelFilter==="all"&&cat==="all")?(<>
+          {nonFeatured.length===0&&featured.length===0&&<div style={{textAlign:"center",padding:"60px 20px",color:txtM}}><div style={{fontSize:40,marginBottom:12}}>📭</div><div style={{fontSize:16,fontWeight:600,color:txtS}}>No articles in this category</div></div>}
+          {nonFeatured.length>0&&<div style={{fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.12em",color:bdgClr,marginBottom:14}}>More Stories</div>}
+          {nonFeatured.map((a,i)=>{
+            const vc=gv(a.id).length,qc=gq(a.id).length;
+            return(
             <div key={a.id} onClick={()=>setSelArt(a)} style={{cursor:"pointer",borderBottom:"1px solid "+bdrC,paddingBottom:20,marginBottom:20,display:"flex",gap:18}}>
               <div style={{flex:1}}>
                 <span style={{fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.12em",color:bdgClr}}>{a.topics}</span>
@@ -794,7 +1339,39 @@ function ReadingModule(){
               </div>
               <div style={{width:140,minWidth:140,height:100,overflow:"hidden",borderRadius:4,flexShrink:0}}><img src={a.image} alt="" style={{width:"100%",height:"100%",objectFit:"cover",filter:dk?"grayscale(30%) brightness(0.8)":"grayscale(10%)"}}/></div>
             </div>);
-        })}
+          })}
+        </>):(<>
+          {filt.length===0&&<div style={{textAlign:"center",padding:"60px 20px",color:txtM}}><div style={{fontSize:40,marginBottom:12}}>📭</div><div style={{fontSize:16,fontWeight:600,color:txtS}}>No articles in this category</div></div>}
+          {filt.map((a,i)=>{
+            const vc=gv(a.id).length,qc=gq(a.id).length;
+            if(i===0)return(
+            <div key={a.id} onClick={()=>setSelArt(a)} style={{display:"grid",gridTemplateColumns:"1.1fr 1fr",gap:36,marginBottom:40,paddingBottom:40,borderBottom:"2px solid "+bdrS,cursor:"pointer"}}>
+              <div style={{overflow:"hidden",borderRadius:4,aspectRatio:"4/3"}}><img src={a.image} alt="" style={{width:"100%",height:"100%",objectFit:"cover",filter:dk?"grayscale(30%) brightness(0.8)":"grayscale(10%)"}}/></div>
+              <div style={{display:"flex",flexDirection:"column",justifyContent:"center"}}>
+                <span style={{fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.12em",color:bdgClr,marginBottom:8}}>{a.topics}</span>
+                <div style={{display:"flex",gap:6,marginBottom:10}}>
+                  <span style={{fontSize:10,fontWeight:700,color:lc[a.level]||"#888",background:(lc[a.level]||"#888")+"22",padding:"3px 10px",borderRadius:4}}>Level {a.level}</span>
+                  <span style={{fontSize:10,fontWeight:600,color:bdgClr,background:bdgBg,padding:"3px 10px",borderRadius:4}}>{vc} vocab · {qc} quiz</span>
+                </div>
+                <h2 style={{fontSize:32,fontWeight:700,lineHeight:1.15,margin:"0 0 14px",fontFamily:"'Playfair Display',serif",color:txtP}}>{a.title}</h2>
+                <p style={{fontSize:15,lineHeight:1.5,color:txtS,margin:0,fontFamily:"'Source Serif 4',serif",display:"-webkit-box",WebkitLineClamp:3,WebkitBoxOrient:"vertical",overflow:"hidden"}}>{a.body.split("\n\n")[0]}</p>
+              </div>
+            </div>);
+            return(
+            <div key={a.id} onClick={()=>setSelArt(a)} style={{cursor:"pointer",borderBottom:"1px solid "+bdrC,paddingBottom:20,marginBottom:20,display:"flex",gap:18}}>
+              <div style={{flex:1}}>
+                <span style={{fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.12em",color:bdgClr}}>{a.topics}</span>
+                <div style={{display:"flex",gap:6,marginBottom:6}}>
+                  <span style={{fontSize:10,fontWeight:700,color:lc[a.level]||"#888",background:(lc[a.level]||"#888")+"22",padding:"3px 10px",borderRadius:4}}>Level {a.level}</span>
+                  <span style={{fontSize:10,fontWeight:600,color:bdgClr,background:bdgBg,padding:"3px 10px",borderRadius:4}}>{vc} vocab · {qc} quiz</span>
+                </div>
+                <h3 style={{fontSize:20,fontWeight:700,lineHeight:1.25,margin:"6px 0 6px",fontFamily:"'Playfair Display',serif",color:txtP}}>{a.title}</h3>
+                <p style={{fontSize:14,lineHeight:1.45,color:txtS,margin:0,fontFamily:"'Source Serif 4',serif",display:"-webkit-box",WebkitLineClamp:2,WebkitBoxOrient:"vertical",overflow:"hidden"}}>{a.body.split("\n\n")[0]}</p>
+              </div>
+              <div style={{width:140,minWidth:140,height:100,overflow:"hidden",borderRadius:4,flexShrink:0}}><img src={a.image} alt="" style={{width:"100%",height:"100%",objectFit:"cover",filter:dk?"grayscale(30%) brightness(0.8)":"grayscale(10%)"}}/></div>
+            </div>);
+          })}
+        </>)}
       </div>
       <div style={{borderTop:"2px solid "+bdrS,background:footBg,padding:"36px 24px",textAlign:"center",transition:"background .3s"}}>
         <div style={{fontFamily:"'Playfair Display',serif",fontSize:18,fontWeight:900,color:C.goldLight,marginBottom:6}}>EduEnglish · The Reading Room</div>
@@ -808,7 +1385,9 @@ function ReadingModule(){
 // MAIN APP
 // ═══════════════════════════════════════
 export default function App(){
-  const [mod,setMod]=useState("landing");
+  const [currentUser, setCurrentUser] = useState(null);
+  const [authPage, setAuthPage] = useState("login"); // login | register
+  const [mod, setMod] = useState("landing");
   useEffect(()=>{
     const s=document.createElement("style");
     s.textContent=`
@@ -830,9 +1409,9 @@ export default function App(){
           <div style={{width:32,height:32,background:C.sage,borderRadius:8,display:"flex",alignItems:"center",justifyContent:"center",fontSize:16}}>📖</div>
           <div style={{fontFamily:"'DM Serif Display',serif",color:"#fff",fontSize:"1.15rem",lineHeight:1}}>Edu<span style={{color:C.sageLight}}>English</span></div>
         </div>
-        <div style={{display:"flex",gap:0}}>
+        <div style={{display:"flex",gap:0,overflowX:"auto",WebkitOverflowScrolling:"touch",msOverflowStyle:"none",scrollbarWidth:"none"}}>
           {[{id:"landing",label:"Beranda"},{id:"vocab",label:"✦ Latihan Vocab"},{id:"reading",label:"◈ Ayo Reading!"}].map(t=>(
-            <button key={t.id} onClick={()=>setMod(t.id)} style={{background:"none",border:"none",padding:"16px 20px",color:mod===t.id?"#fff":"rgba(255,255,255,0.4)",fontFamily:"'DM Sans',sans-serif",fontSize:"0.82rem",fontWeight:mod===t.id?700:500,cursor:"pointer",borderBottom:mod===t.id?"3px solid "+C.sageLight:"3px solid transparent",transition:"all .15s",whiteSpace:"nowrap"}}>{t.label}</button>
+            <button key={t.id} onClick={()=>setMod(t.id)} style={{background:"none",border:"none",padding:"16px 20px",color:mod===t.id?"#fff":"rgba(255,255,255,0.4)",fontFamily:"'DM Sans',sans-serif",fontSize:"0.82rem",fontWeight:mod===t.id?700:500,cursor:"pointer",borderBottom:mod===t.id?"3px solid "+C.sageLight:"3px solid transparent",transition:"all .15s",whiteSpace:"nowrap",flexShrink:0}}>{t.label}</button>
           ))}
         </div>
       </div>
@@ -865,5 +1444,70 @@ export default function App(){
     </div>
   );
 
-  return(<div><Header/>{mod==="landing"&&<Landing/>}{mod==="vocab"&&<VocabModule/>}{mod==="reading"&&<ReadingModule/>}</div>);
+ // Logout handler
+  const handleLogout = () => {
+    setCurrentUser(null);
+    setAuthPage("login");
+  };
+
+  // Check session on mount
+  useEffect(() => {
+    if (!supabase) return;
+    supabase.auth.getSession().then(({ data }) => {
+      if (data.session?.user) {
+        // User sudah login via Google/Email
+        setCurrentUser({ ...data.session.user, role: "user" });
+      }
+    });
+  }, []);
+
+  // If not logged in, show auth pages
+  if (!currentUser) {
+    if (authPage === "register") {
+      return <PremiumRequestPage onBackToLogin={() => setAuthPage("login")} supabase={supabase} />;
+    }
+    return (
+      <LoginPage
+        onLoginSuccess={(u) => {
+          setCurrentUser(u);
+          setAuthPage("login");
+        }}
+        onGoToRegister={() => setAuthPage("register")}
+        supabase={supabase}
+      />
+    );
+  }
+
+  // If admin, show admin dashboard
+  if (currentUser.role === "admin") {
+    return <AdminDashboard user={currentUser} onLogout={handleLogout} supabase={supabase} />;
+  }
+
+  // Regular user - show app dengan auth aware header
+  return (
+    <div>
+      <Header />
+      {mod === "landing" && <Landing />}
+      {mod==="vocab"&&<VocabModule supabase={supabase} currentUser={currentUser}/>}
+      {mod === "reading" && <ReadingModule supabase={supabase} currentUser={currentUser} />}
+      {mod === "profile" && <UserProfile user={currentUser} onLogout={handleLogout} supabase={supabase} />}
+      {currentUser && (
+          <button
+            onClick={() => setMod("profile")}
+            style={{
+              background: "#5d8a6e",
+              color: "#fff",
+              border: "none",
+              padding: "8px 14px",
+              borderRadius: 6,
+              cursor: "pointer",
+              fontSize: 12,
+              marginLeft: "auto"
+            }}
+          >
+            👤 Profile
+          </button>
+        )}
+    </div>
+  );
 }

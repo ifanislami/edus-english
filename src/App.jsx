@@ -1386,8 +1386,9 @@ function ReadingModule({ supabase, currentUser }){
 // ═══════════════════════════════════════
 export default function App(){
   const [currentUser, setCurrentUser] = useState(null);
-  const [authPage, setAuthPage] = useState("login"); // login | register
-  const [mod, setMod] = useState("landing");
+  const [mod, setMod] = useState("landing"); // landing | vocab | reading | login | register | profile
+  const [sessionLoaded, setSessionLoaded] = useState(false);
+
   useEffect(()=>{
     const s=document.createElement("style");
     s.textContent=`
@@ -1402,21 +1403,78 @@ export default function App(){
     return()=>document.head.removeChild(s);
   },[]);
 
-  const Header=()=>(
-    <div style={{background:C.navyDark,padding:0,position:"sticky",top:0,zIndex:500}}>
-      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"0 24px",maxWidth:1200,margin:"0 auto"}}>
-        <div onClick={()=>setMod("landing")} style={{display:"flex",alignItems:"center",gap:10,padding:"12px 0",cursor:"pointer"}}>
-          <div style={{width:32,height:32,background:C.sage,borderRadius:8,display:"flex",alignItems:"center",justifyContent:"center",fontSize:16}}>📖</div>
-          <div style={{fontFamily:"'DM Serif Display',serif",color:"#fff",fontSize:"1.15rem",lineHeight:1}}>Edu<span style={{color:C.sageLight}}>English</span></div>
-        </div>
-        <div style={{display:"flex",gap:0,overflowX:"auto",WebkitOverflowScrolling:"touch",msOverflowStyle:"none",scrollbarWidth:"none"}}>
-          {[{id:"landing",label:"Beranda"},{id:"vocab",label:"✦ Latihan Vocab"},{id:"reading",label:"◈ Ayo Reading!"}].map(t=>(
-            <button key={t.id} onClick={()=>setMod(t.id)} style={{background:"none",border:"none",padding:"16px 20px",color:mod===t.id?"#fff":"rgba(255,255,255,0.4)",fontFamily:"'DM Sans',sans-serif",fontSize:"0.82rem",fontWeight:mod===t.id?700:500,cursor:"pointer",borderBottom:mod===t.id?"3px solid "+C.sageLight:"3px solid transparent",transition:"all .15s",whiteSpace:"nowrap",flexShrink:0}}>{t.label}</button>
-          ))}
+  // Check session on mount — tanpa block render
+  useEffect(() => {
+    if (!supabase) { setSessionLoaded(true); return; }
+    supabase.auth.getSession().then(({ data }) => {
+      if (data.session?.user) {
+        setCurrentUser({ ...data.session.user, role: "user" });
+      }
+      setSessionLoaded(true);
+    });
+    // Listen for auth state changes (e.g. after OAuth redirect)
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session?.user) {
+        setCurrentUser({ ...session.user, role: "user" });
+        setMod("landing");
+      } else {
+        setCurrentUser(null);
+      }
+    });
+    return () => listener.subscription.unsubscribe();
+  }, []);
+
+  const handleLogout = async () => {
+    if (supabase) await supabase.auth.signOut();
+    setCurrentUser(null);
+    setMod("landing");
+  };
+
+  const Header = () => {
+    const navTabs = [
+      { id: "landing", label: "Beranda" },
+      { id: "vocab",   label: "✦ Latihan Vocab" },
+      { id: "reading", label: "◈ Ayo Reading!" },
+    ];
+    return (
+      <div style={{background:C.navyDark,padding:0,position:"sticky",top:0,zIndex:500}}>
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"0 24px",maxWidth:1200,margin:"0 auto"}}>
+          {/* Logo */}
+          <div onClick={()=>setMod("landing")} style={{display:"flex",alignItems:"center",gap:10,padding:"12px 0",cursor:"pointer",flexShrink:0}}>
+            <div style={{width:32,height:32,background:C.sage,borderRadius:8,display:"flex",alignItems:"center",justifyContent:"center",fontSize:16}}>📖</div>
+            <div style={{fontFamily:"'DM Serif Display',serif",color:"#fff",fontSize:"1.15rem",lineHeight:1}}>Edu<span style={{color:C.sageLight}}>English</span></div>
+          </div>
+          {/* Nav tabs */}
+          <div style={{display:"flex",gap:0,overflowX:"auto",WebkitOverflowScrolling:"touch",msOverflowStyle:"none",scrollbarWidth:"none",flex:1}}>
+            {navTabs.map(t=>(
+              <button key={t.id} onClick={()=>setMod(t.id)} style={{background:"none",border:"none",padding:"16px 20px",color:mod===t.id?"#fff":"rgba(255,255,255,0.4)",fontFamily:"'DM Sans',sans-serif",fontSize:"0.82rem",fontWeight:mod===t.id?700:500,cursor:"pointer",borderBottom:mod===t.id?"3px solid "+C.sageLight:"3px solid transparent",transition:"all .15s",whiteSpace:"nowrap",flexShrink:0}}>{t.label}</button>
+            ))}
+          </div>
+          {/* Auth area */}
+          <div style={{display:"flex",alignItems:"center",gap:8,flexShrink:0,paddingLeft:8}}>
+            {currentUser ? (
+              <>
+                <button onClick={()=>setMod("profile")} style={{background:"none",border:"none",padding:"6px 12px",color:mod==="profile"?"#fff":"rgba(255,255,255,0.6)",fontFamily:"'DM Sans',sans-serif",fontSize:"0.82rem",cursor:"pointer",borderBottom:mod==="profile"?"3px solid "+C.sageLight:"3px solid transparent",transition:"all .15s",whiteSpace:"nowrap"}}>
+                  👤 {currentUser.user_metadata?.name || currentUser.email?.split("@")[0] || "Profil"}
+                </button>
+                <button onClick={handleLogout} style={{background:"rgba(255,255,255,0.08)",border:"1px solid rgba(255,255,255,0.15)",padding:"6px 14px",color:"rgba(255,255,255,0.6)",fontFamily:"'DM Sans',sans-serif",fontSize:"0.78rem",cursor:"pointer",borderRadius:6,whiteSpace:"nowrap",transition:"all .15s"}}
+                  onMouseEnter={e=>e.currentTarget.style.background="rgba(255,255,255,0.15)"}
+                  onMouseLeave={e=>e.currentTarget.style.background="rgba(255,255,255,0.08)"}>
+                  Keluar
+                </button>
+              </>
+            ) : (
+              <button onClick={()=>setMod("login")} style={{background:C.sage,border:"none",padding:"8px 18px",color:"#fff",fontFamily:"'DM Sans',sans-serif",fontSize:"0.82rem",fontWeight:600,cursor:"pointer",borderRadius:8,whiteSpace:"nowrap",transition:"all .15s"}}
+                onMouseEnter={e=>e.currentTarget.style.background=C.sageLight}
+                onMouseLeave={e=>e.currentTarget.style.background=C.sage}>
+                Masuk
+              </button>
+            )}
+          </div>
         </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   const Landing=()=>(
     <div style={{background:C.cream,minHeight:"100vh",animation:"fadeIn .4s ease-out"}}>
@@ -1444,70 +1502,45 @@ export default function App(){
     </div>
   );
 
- // Logout handler
-  const handleLogout = () => {
-    setCurrentUser(null);
-    setAuthPage("login");
-  };
+  // Tunggu session check selesai dulu sebelum render
+  if (!sessionLoaded) return null;
 
-  // Check session on mount
-  useEffect(() => {
-    if (!supabase) return;
-    supabase.auth.getSession().then(({ data }) => {
-      if (data.session?.user) {
-        // User sudah login via Google/Email
-        setCurrentUser({ ...data.session.user, role: "user" });
-      }
-    });
-  }, []);
-
-  // If not logged in, show auth pages
-  if (!currentUser) {
-    if (authPage === "register") {
-      return <PremiumRequestPage onBackToLogin={() => setAuthPage("login")} supabase={supabase} />;
-    }
-    return (
-      <LoginPage
-        onLoginSuccess={(u) => {
-          setCurrentUser(u);
-          setAuthPage("login");
-        }}
-        onGoToRegister={() => setAuthPage("register")}
-        supabase={supabase}
-      />
-    );
-  }
-
-  // If admin, show admin dashboard
-  if (currentUser.role === "admin") {
+  // Admin dashboard — full takeover
+  if (currentUser?.role === "admin") {
     return <AdminDashboard user={currentUser} onLogout={handleLogout} supabase={supabase} />;
   }
 
-  // Regular user - show app dengan auth aware header
+  // Login / Register pages — tetap dengan header supaya bisa balik
+  if (mod === "login") {
+    return (
+      <div>
+        <Header />
+        <LoginPage
+          onLoginSuccess={(u) => { setCurrentUser(u); setMod("landing"); }}
+          onGoToRegister={() => setMod("register")}
+          supabase={supabase}
+        />
+      </div>
+    );
+  }
+
+  if (mod === "register") {
+    return (
+      <div>
+        <Header />
+        <PremiumRequestPage onBackToLogin={() => setMod("login")} supabase={supabase} />
+      </div>
+    );
+  }
+
+  // Semua halaman utama — terbuka untuk semua, login tidak wajib
   return (
     <div>
       <Header />
-      {mod === "landing" && <Landing />}
-      {mod==="vocab"&&<VocabModule supabase={supabase} currentUser={currentUser}/>}
-      {mod === "reading" && <ReadingModule supabase={supabase} currentUser={currentUser} />}
-      {mod === "profile" && <UserProfile user={currentUser} onLogout={handleLogout} supabase={supabase} />}
-      {currentUser && (
-          <button
-            onClick={() => setMod("profile")}
-            style={{
-              background: "#5d8a6e",
-              color: "#fff",
-              border: "none",
-              padding: "8px 14px",
-              borderRadius: 6,
-              cursor: "pointer",
-              fontSize: 12,
-              marginLeft: "auto"
-            }}
-          >
-            👤 Profile
-          </button>
-        )}
+      {mod === "landing"  && <Landing />}
+      {mod === "vocab"    && <VocabModule supabase={supabase} currentUser={currentUser} />}
+      {mod === "reading"  && <ReadingModule supabase={supabase} currentUser={currentUser} />}
+      {mod === "profile"  && currentUser && <UserProfile user={currentUser} onLogout={handleLogout} supabase={supabase} />}
     </div>
   );
 }

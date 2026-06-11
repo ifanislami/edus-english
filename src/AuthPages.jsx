@@ -334,8 +334,11 @@ export function PremiumRequestPage({ onBackToLogin, supabase }) {
 
       if (err) throw err;
 
-      // TODO: Kirim email instruksi transfer di sini
-      // Untuk MVP, skip email dulu
+      // Buka WhatsApp pribadi dengan pesan otomatis
+      const waMessage = encodeURIComponent(
+        `Halo, saya ingin mendaftar Premium Tumbuh Academy.\n\nNama: ${fullName}\nEmail: ${email}\nPaket: ${planType === "monthly" ? "Bulanan - Rp 29.000" : "Tahunan - Rp 290.000"}\n\nMohon info rekening pembayarannya. Terima kasih!`
+      );
+      window.open(`https://wa.me/6285719064208?text=${waMessage}`, "_blank");
 
       setSuccess(true);
     } catch (err) {

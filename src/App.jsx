@@ -57,8 +57,8 @@ function parseArticlesSheet(rows) {
       writers: r.writers || r.Writers || null,
       source: r.source || r.Source || null,
       date: r.date || r.Date || null,
-      body: (r.body_eng || r.body || r.Body_eng || r.Body || "").replace(/\\n/g, "\n").replace(/\n /g,"\n").trim(),
-      body_idn: (r.body_idn || r.Body_idn || "").replace(/\\n/g, "\n").replace(/\n /g,"\n").trim(),
+      body: (r.body_eng || r.body || r.Body_eng || r.Body || "").replace(/\\n/g, "\n").trim(),
+      body_idn: (r.body_idn || r.Body_idn || "").replace(/\\n/g, "\n").trim(),
       image: r.url_image || r.image_url || r.image || "https://images.unsplash.com/photo-1456513080510-7bf3a84b82f8?w=800"
     }));
   return { articles, vocab: [], quiz: [] };
@@ -812,7 +812,7 @@ function HighlightedText({content,vocabList,dark:dk}){
   const dc=dk?"#f0ece4":"#1a1a1a";
   return(
     <div onClick={()=>setTip(null)}>
-      {content.split("\n\n").map((p,i)=>(
+    {content.split(/\n\n+|\n/).filter(p=>p.trim().length>0).map((p,i)=>(
         <p key={i} style={{fontSize:18,lineHeight:1.6,marginBottom:18,color:tc,fontFamily:"'Source Serif 4','Georgia',serif",letterSpacing:"0.015em",transition:"color .3s"}}>
           {i===0&&<span style={{float:"left",fontSize:58,lineHeight:"48px",paddingRight:8,paddingTop:6,fontFamily:"'Playfair Display',serif",fontWeight:900,color:dc,transition:"color .3s"}}>{p.charAt(0)}</span>}
           {renderP(i===0?p.slice(1):p,i)}
@@ -1091,6 +1091,33 @@ function ReadingProgressBar({ dark }) {
   );
 }
 
+// Topik dropdown untuk menu Reading Room
+function TopikDropdown({ cat, setCat, dark }) {
+  const [open, setOpen] = useState(false);
+  const OTHER_TOPICS = ["Lifestyle","Economic","News","Education","Literature"];
+  const isActive = OTHER_TOPICS.includes(cat);
+  return (
+    <div style={{position:"relative"}} onMouseEnter={()=>setOpen(true)} onMouseLeave={()=>setOpen(false)}>
+      <button style={{background:"none",border:"none",padding:"14px 18px",color:isActive?(dark?"#fff":"#1a1a1a"):(dark?"rgba(255,255,255,0.5)":"rgba(0,0,0,0.45)"),fontFamily:"'Source Sans 3',sans-serif",fontSize:13,fontWeight:isActive?700:600,cursor:"pointer",borderBottom:isActive?"3px solid #F39C12":"3px solid transparent",transition:"all .15s",display:"flex",alignItems:"center",gap:5,whiteSpace:"nowrap"}}>
+        {isActive ? cat : "Topik"}
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{transition:"transform .2s",transform:open?"rotate(180deg)":"none"}}><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+      {open&&(
+        <div style={{position:"absolute",top:"100%",left:0,background:dark?"#1e2a47":"#fff",borderRadius:10,boxShadow:"0 8px 32px rgba(0,0,0,0.18)",minWidth:160,overflow:"hidden",border:"1px solid "+(dark?"rgba(255,255,255,0.08)":"#e5e7eb"),zIndex:200}}>
+          {isActive&&<button onClick={()=>{setCat("all");setOpen(false);}} style={{display:"block",width:"100%",background:"none",border:"none",padding:"10px 16px",color:dark?"rgba(255,255,255,0.5)":"#9ca3af",fontFamily:"'Source Sans 3',sans-serif",fontSize:12,cursor:"pointer",textAlign:"left",borderBottom:"1px solid "+(dark?"rgba(255,255,255,0.06)":"#f3f4f6")}}>← Semua Topik</button>}
+          {OTHER_TOPICS.map(t=>(
+            <button key={t} onClick={()=>{setCat(t);setOpen(false);}} style={{display:"block",width:"100%",background:cat===t?(dark?"rgba(243,156,18,0.15)":"#FEF3CD"):"none",border:"none",padding:"11px 16px",color:cat===t?"#F39C12":(dark?"rgba(255,255,255,0.8)":"#374151"),fontFamily:"'Source Sans 3',sans-serif",fontSize:13,fontWeight:cat===t?700:500,cursor:"pointer",textAlign:"left",transition:"background .12s"}}
+              onMouseEnter={e=>{if(cat!==t)e.currentTarget.style.background=dark?"rgba(255,255,255,0.05)":"#f9fafb";}}
+              onMouseLeave={e=>{if(cat!==t)e.currentTarget.style.background="none";}}>
+              {t}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function ReadingModule({ supabase, currentUser }){
   console.log("🔵 ReadingModule mounted");
   console.log("supabase:", supabase);
@@ -1112,8 +1139,21 @@ function ReadingModule({ supabase, currentUser }){
   const [readingAns, setReadingAns] = useState({});
   const [langMode, setLangMode] = useState("en"); // "en"|"id" body language toggle
   const [featuredIds, setFeaturedIds] = useState(new Set(["A1","A2","A3"])); // Featured top articles
-  const [levelFilter, setLevelFilter] = useState("all"); // Level filter A/B/C/D/all
+  const [levelFilter, setLevelFilter] = useState("all"); // Level filter 1/2/3/4/all
+  const [showLoginGate, setShowLoginGate] = useState(false);
 
+  // Free access: non-logged-in users get first 2 articles of Level 1 + first 2 of Level 2
+  const freeArticleIds = useMemo(() => {
+    const lvl1 = articles.filter(a => a.level === "1").sort((a, b) => (b.date ? new Date(b.date) : new Date(0)) - (a.date ? new Date(a.date) : new Date(0))).slice(0, 2).map(a => a.id);
+    const lvl2 = articles.filter(a => a.level === "2").sort((a, b) => (b.date ? new Date(b.date) : new Date(0)) - (a.date ? new Date(a.date) : new Date(0))).slice(0, 2).map(a => a.id);
+    return new Set([...lvl1, ...lvl2]);
+  }, [articles]);
+
+  const isArticleFree = (a) => currentUser || freeArticleIds.has(a.id);
+
+  const handleArticleClick = (a) => {
+    if (isArticleFree(a)) { setSelArt(a); } else { setShowLoginGate(true); }
+  };
   // Fetch from Google Sheets on mount — 3 sheets: articles, vocab, quiz_article
   useEffect(()=>{
     if(!GOOGLE_API_KEY||!SHEETS_ID){setSheetsStatus("idle");return;}
@@ -1186,6 +1226,12 @@ function ReadingModule({ supabase, currentUser }){
   const filt=useMemo(()=>{
     let f=cat==="all"?articles:articles.filter(a=>a.topics.toLowerCase().includes(cat.toLowerCase()));
     if(levelFilter!=="all") f=f.filter(a=>a.level===levelFilter);
+    // Sort by date descending (newest first)
+    f=[...f].sort((a,b)=>{
+      const da=a.date?new Date(a.date):new Date(0);
+      const db=b.date?new Date(b.date):new Date(0);
+      return db-da;
+    });
     return f;
   },[articles,cat,levelFilter]);
 
@@ -1423,8 +1469,6 @@ function ReadingModule({ supabase, currentUser }){
   }
 
   // ── READING HOME ──
-  const featured=articles.filter(a=>featuredIds.has(a.id));
-  const nonFeatured=filt.filter(a=>!featuredIds.has(a.id));
   return(
     <div style={{minHeight:"100vh",background:bg,fontFamily:"'Source Sans 3',sans-serif",transition:"background .3s"}}>
       <div style={{textAlign:"center",padding:"36px 24px 8px",borderBottom:dk?"3px double #444":"3px double #1a1a1a",maxWidth:1100,margin:"0 auto"}}>
@@ -1432,107 +1476,115 @@ function ReadingModule({ supabase, currentUser }){
         <h1 style={{fontFamily:"'Playfair Display',serif",fontSize:48,fontWeight:900,color:txtP,letterSpacing:"-0.02em",marginBottom:6,lineHeight:1,transition:"color .3s"}}>The Reading Room</h1>
         <div style={{fontSize:13,color:txtM,fontFamily:"'Source Serif 4',serif",fontStyle:"italic",marginBottom:10}}>Baca, pelajari, dan perkaya kosakata Inggrismu</div>
       </div>
+
+      {/* STICKY NAV: Saintek | Soshum | Topik dropdown | Dark/Light */}
       <div style={{position:"sticky",top:48,zIndex:150,background:navBg,backdropFilter:"blur(8px)",borderBottom:"1px solid "+(dk?"#2a2a2a":"#e0dcd5")}}>
-        <div style={{maxWidth:1100,margin:"0 auto",padding:"0 24px",display:"flex",gap:8,alignItems:"center",flexWrap:"wrap",minHeight:52}}>
-          {/* Topik Dropdown */}
-          <select value={cat} onChange={e=>setCat(e.target.value)} style={{padding:"7px 14px",background:dk?"#2a2a2a":"#f0ece4",border:"1.5px solid "+(cat!=="all"?(dk?"#F39C12":"#F39C12"):(dk?"#444":"#d8d3c8")),borderRadius:7,fontSize:12,fontWeight:600,color:cat!=="all"?"#F39C12":(dk?"#e8c87a":"#8b7355"),cursor:"pointer",fontFamily:"'Source Sans 3',sans-serif",outline:"none"}}>
-            {RD_CATS.map(c=><option key={c.id} value={c.id}>{c.id==="all"?"📚 Semua Topik":c.label}</option>)}
-          </select>
-          {/* Level Dropdown */}
-          <select value={levelFilter} onChange={e=>setLevelFilter(e.target.value)} style={{padding:"7px 14px",background:dk?"#2a2a2a":"#f0ece4",border:"1.5px solid "+(levelFilter!=="all"?"#F39C12":(dk?"#444":"#d8d3c8")),borderRadius:7,fontSize:12,fontWeight:600,color:levelFilter!=="all"?"#F39C12":(dk?"#e8c87a":"#8b7355"),cursor:"pointer",fontFamily:"'Source Sans 3',sans-serif",outline:"none"}}>
-            <option value="all">🎯 Semua Level</option>
-            <option value="1">Level 1</option>
-            <option value="2">Level 2</option>
-            <option value="3">Level 3</option>
-            <option value="4">Level 4</option>
-          </select>
-          <div style={{marginLeft:"auto",display:"flex",gap:8,alignItems:"center",flexShrink:0}}>
-            <button onClick={()=>setDark(d=>!d)} style={{padding:"7px 14px",background:dk?"#2a2a2a":"#f0ece4",border:"1.5px solid "+(dk?"#444":"#d8d3c8"),borderRadius:7,fontSize:13,cursor:"pointer",display:"flex",alignItems:"center",gap:5,color:dk?"#e8c87a":"#8b7355",fontWeight:600}}>{dk?"☀ Light":"🌙 Dark"}</button>
-            {currentUser?.role==="admin"&&<button onClick={()=>setShowAdmin(true)} style={{padding:"7px 16px",background:"transparent",border:"1.5px solid "+(dk?"#444":"#d8d3c8"),borderRadius:7,fontSize:12,fontWeight:600,color:dk?"rgba(255,255,255,0.4)":"#8b7355",cursor:"pointer",display:"flex",alignItems:"center",gap:5}}>⚙ Admin</button>}
+        <div style={{maxWidth:1100,margin:"0 auto",padding:"0 16px",display:"flex",alignItems:"center",gap:0}}>
+          <button onClick={()=>setCat(cat==="Saintek"?"all":"Saintek")} style={{background:"none",border:"none",padding:"14px 18px",color:cat==="Saintek"?txtP:navInact,fontFamily:"'Source Sans 3',sans-serif",fontSize:13,fontWeight:cat==="Saintek"?700:600,cursor:"pointer",borderBottom:cat==="Saintek"?"3px solid #F39C12":"3px solid transparent",transition:"all .15s",whiteSpace:"nowrap"}}>Saintek</button>
+          <button onClick={()=>setCat(cat==="Soshum"?"all":"Soshum")} style={{background:"none",border:"none",padding:"14px 18px",color:cat==="Soshum"?txtP:navInact,fontFamily:"'Source Sans 3',sans-serif",fontSize:13,fontWeight:cat==="Soshum"?700:600,cursor:"pointer",borderBottom:cat==="Soshum"?"3px solid #F39C12":"3px solid transparent",transition:"all .15s",whiteSpace:"nowrap"}}>Soshum</button>
+          <TopikDropdown cat={cat} setCat={setCat} dark={dk}/>
+          <div style={{marginLeft:"auto",display:"flex",alignItems:"center",gap:8,flexShrink:0}}>
+            <button onClick={()=>setDark(d=>!d)} style={{padding:"7px 14px",background:dk?"#2a2a2a":"#f0ece4",border:"1.5px solid "+(dk?"#444":"#d8d3c8"),borderRadius:7,fontSize:12,cursor:"pointer",color:dk?"#e8c87a":"#8b7355",fontWeight:600}}>{dk?"☀ Light":"🌙 Dark"}</button>
+            {currentUser?.role==="admin"&&<button onClick={()=>setShowAdmin(true)} style={{padding:"7px 14px",background:"transparent",border:"1.5px solid "+(dk?"#444":"#d8d3c8"),borderRadius:7,fontSize:12,fontWeight:600,color:dk?"rgba(255,255,255,0.4)":"#8b7355",cursor:"pointer"}}>⚙</button>}
           </div>
         </div>
       </div>
 
-      {/* FEATURED CAROUSEL */}
-      {featured.length>0&&levelFilter==="all"&&cat==="all"&&<div style={{maxWidth:1100,margin:"0 auto",padding:"28px 24px 0"}}>
-        <div style={{fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.12em",color:bdgClr,marginBottom:14}}>⭐ Featured Stories</div>
-        <div style={{display:"flex",gap:20,overflowX:"auto",WebkitOverflowScrolling:"touch",scrollbarWidth:"none",paddingBottom:8,msOverflowStyle:"none"}}>
-          {featured.map(a=>{const vc=gv(a.id).length,qc=gq(a.id).length;return(
-            <div key={a.id} onClick={()=>setSelArt(a)} style={{minWidth:320,maxWidth:360,flex:"0 0 auto",cursor:"pointer",borderRadius:12,overflow:"hidden",background:bgCard,boxShadow:"0 6px 28px rgba(26,39,68,0.12)",transition:"transform .2s",border:"1px solid "+bdrC}} onMouseEnter={e=>e.currentTarget.style.transform="translateY(-4px)"} onMouseLeave={e=>e.currentTarget.style.transform="none"}>
-              <div style={{height:180,overflow:"hidden"}}><img src={a.image} alt="" style={{width:"100%",height:"100%",objectFit:"cover",filter:dk?"grayscale(30%) brightness(0.8)":"grayscale(10%)"}}/></div>
-              <div style={{padding:"18px 20px"}}>
-                <div style={{display:"flex",gap:6,marginBottom:8}}>
-                  <span style={{fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.1em",color:bdgClr}}>{a.topics}</span>
-                </div>
-                <div style={{display:"flex",gap:6,marginBottom:8}}>
-                  <span style={{fontSize:10,fontWeight:700,color:lc[a.level]||"#888",background:(lc[a.level]||"#888")+"22",padding:"3px 10px",borderRadius:4}}>Level {a.level}</span>
-                  <span style={{fontSize:10,fontWeight:600,color:bdgClr,background:bdgBg,padding:"3px 10px",borderRadius:4}}>{vc} vocab · {qc} quiz</span>
-                </div>
-                <h3 style={{fontSize:18,fontWeight:700,lineHeight:1.25,margin:"0 0 8px",fontFamily:"'Playfair Display',serif",color:txtP}}>{a.title}</h3>
-                <p style={{fontSize:13,lineHeight:1.45,color:txtS,margin:0,fontFamily:"'Source Serif 4',serif",display:"-webkit-box",WebkitLineClamp:2,WebkitBoxOrient:"vertical",overflow:"hidden"}}>{a.body.split("\n\n")[0]}</p>
-              </div>
-            </div>);})}
-        </div>
-      </div>}
+      {/* INLINE FILTER: Level */}
+      <div style={{maxWidth:1100,margin:"0 auto",padding:"16px 24px 0",display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
+        <span style={{fontSize:11,fontWeight:700,color:txtM,textTransform:"uppercase",letterSpacing:"0.08em",marginRight:4}}>Level:</span>
+        {[["all","Semua"],["1","Level 1"],["2","Level 2"],["3","Level 3"],["4","Level 4"]].map(([val,label])=>(
+          <button key={val} onClick={()=>setLevelFilter(val)} style={{padding:"5px 14px",borderRadius:20,border:"1.5px solid "+(levelFilter===val?"#F39C12":(dk?"#444":"#d8d3c8")),background:levelFilter===val?"#F39C12":(dk?"#1a1a1a":"#fff"),color:levelFilter===val?"#fff":(dk?"rgba(255,255,255,0.6)":"#555"),fontSize:12,fontWeight:levelFilter===val?700:500,cursor:"pointer",transition:"all .15s"}}>
+            {label}
+          </button>
+        ))}
+        <span style={{marginLeft:"auto",fontSize:12,color:txtM}}>{filt.length} artikel</span>
+      </div>
 
       {/* ARTICLE LIST */}
-      <div style={{maxWidth:1100,margin:"0 auto",padding:"36px 24px 60px"}}>
-        {(levelFilter==="all"&&cat==="all")?(<>
-          {nonFeatured.length===0&&featured.length===0&&<div style={{textAlign:"center",padding:"60px 20px",color:txtM}}><div style={{fontSize:40,marginBottom:12}}>📭</div><div style={{fontSize:16,fontWeight:600,color:txtS}}>No articles in this category</div></div>}
-          {nonFeatured.length>0&&<div style={{fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.12em",color:bdgClr,marginBottom:14}}>More Stories</div>}
-          {nonFeatured.map((a,i)=>{
-            const vc=gv(a.id).length,qc=gq(a.id).length;
-            return(
-            <div key={a.id} onClick={()=>setSelArt(a)} style={{cursor:"pointer",borderBottom:"1px solid "+bdrC,paddingBottom:20,marginBottom:20,display:"flex",gap:18}}>
-              <div style={{flex:1}}>
-                <span style={{fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.12em",color:bdgClr}}>{a.topics}</span>
-                <div style={{display:"flex",gap:6,marginBottom:6}}>
-                  <span style={{fontSize:10,fontWeight:700,color:lc[a.level]||"#888",background:(lc[a.level]||"#888")+"22",padding:"3px 10px",borderRadius:4}}>Level {a.level}</span>
-                  <span style={{fontSize:10,fontWeight:600,color:bdgClr,background:bdgBg,padding:"3px 10px",borderRadius:4}}>{vc} vocab · {qc} quiz</span>
-                </div>
-                <h3 style={{fontSize:20,fontWeight:700,lineHeight:1.25,margin:"6px 0 6px",fontFamily:"'Playfair Display',serif",color:txtP}}>{a.title}</h3>
-                <p style={{fontSize:14,lineHeight:1.45,color:txtS,margin:0,fontFamily:"'Source Serif 4',serif",display:"-webkit-box",WebkitLineClamp:2,WebkitBoxOrient:"vertical",overflow:"hidden"}}>{a.body.split("\n\n")[0]}</p>
-              </div>
-              <div style={{width:140,minWidth:140,height:100,overflow:"hidden",borderRadius:4,flexShrink:0}}><img src={a.image} alt="" style={{width:"100%",height:"100%",objectFit:"cover",filter:dk?"grayscale(30%) brightness(0.8)":"grayscale(10%)"}}/></div>
-            </div>);
-          })}
-        </>):(<>
-          {filt.length===0&&<div style={{textAlign:"center",padding:"60px 20px",color:txtM}}><div style={{fontSize:40,marginBottom:12}}>📭</div><div style={{fontSize:16,fontWeight:600,color:txtS}}>No articles in this category</div></div>}
-          {filt.map((a,i)=>{
-            const vc=gv(a.id).length,qc=gq(a.id).length;
-            if(i===0)return(
-            <div key={a.id} onClick={()=>setSelArt(a)} style={{display:"grid",gridTemplateColumns:"1.1fr 1fr",gap:36,marginBottom:40,paddingBottom:40,borderBottom:"2px solid "+bdrS,cursor:"pointer"}}>
-              <div style={{overflow:"hidden",borderRadius:4,aspectRatio:"4/3"}}><img src={a.image} alt="" style={{width:"100%",height:"100%",objectFit:"cover",filter:dk?"grayscale(30%) brightness(0.8)":"grayscale(10%)"}}/></div>
+      <div style={{maxWidth:1100,margin:"0 auto",padding:"20px 24px 60px"}}>
+        {filt.length===0&&<div style={{textAlign:"center",padding:"60px 20px",color:txtM}}><div style={{fontSize:40,marginBottom:12}}>📭</div><div style={{fontSize:16,fontWeight:600,color:txtS}}>Tidak ada artikel di kategori ini</div></div>}
+        {filt.map((a,i)=>{
+          const vc=gv(a.id).length,qc=gq(a.id).length;
+          if(i===0) return(
+            <div key={a.id} onClick={()=>setSelArt(a)} style={{display:"grid",gridTemplateColumns:"1.1fr 1fr",gap:36,marginBottom:40,paddingBottom:40,borderBottom:"2px solid "+(dk?"#2a2a2a":"#e0dcd5"),cursor:"pointer"}}>
+              <div style={{overflow:"hidden",borderRadius:8,aspectRatio:"4/3"}}><img src={a.image} alt="" style={{width:"100%",height:"100%",objectFit:"cover",filter:dk?"grayscale(30%) brightness(0.8)":"grayscale(8%)",transition:"transform .3s"}} onMouseEnter={e=>e.target.style.transform="scale(1.03)"} onMouseLeave={e=>e.target.style.transform="none"}/></div>
               <div style={{display:"flex",flexDirection:"column",justifyContent:"center"}}>
-                <span style={{fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.12em",color:bdgClr,marginBottom:8}}>{a.topics}</span>
-                <div style={{display:"flex",gap:6,marginBottom:10}}>
-                  <span style={{fontSize:10,fontWeight:700,color:lc[a.level]||"#888",background:(lc[a.level]||"#888")+"22",padding:"3px 10px",borderRadius:4}}>Level {a.level}</span>
-                  <span style={{fontSize:10,fontWeight:600,color:bdgClr,background:bdgBg,padding:"3px 10px",borderRadius:4}}>{vc} vocab · {qc} quiz</span>
+                <div style={{display:"flex",gap:8,marginBottom:10,alignItems:"center"}}>
+                  <span style={{fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.12em",color:bdgClr}}>{a.topics}</span>
+                  <span style={{fontSize:10,fontWeight:700,color:lc[a.level]||"#888",background:(lc[a.level]||"#888")+"22",padding:"2px 9px",borderRadius:4}}>{ll[a.level]||"Level "+a.level}</span>
                 </div>
-                <h2 style={{fontSize:32,fontWeight:700,lineHeight:1.15,margin:"0 0 14px",fontFamily:"'Playfair Display',serif",color:txtP}}>{a.title}</h2>
-                <p style={{fontSize:15,lineHeight:1.5,color:txtS,margin:0,fontFamily:"'Source Serif 4',serif",display:"-webkit-box",WebkitLineClamp:3,WebkitBoxOrient:"vertical",overflow:"hidden"}}>{a.body.split("\n\n")[0]}</p>
+                <h2 style={{fontSize:30,fontWeight:700,lineHeight:1.15,margin:"0 0 12px",fontFamily:"'Playfair Display',serif",color:txtP}}>{a.title}</h2>
+                <p style={{fontSize:14,lineHeight:1.55,color:txtS,margin:"0 0 14px",fontFamily:"'Source Serif 4',serif",display:"-webkit-box",WebkitLineClamp:3,WebkitBoxOrient:"vertical",overflow:"hidden"}}>{a.body.split("\n\n")[0]}</p>
+                <div style={{display:"flex",gap:10,fontSize:11,color:txtM}}>
+                  {a.date&&<span>🗓 {String(a.date).split("T")[0]}</span>}
+                  {vc>0&&<span>📝 {vc} vocab</span>}
+                  {qc>0&&<span>🧠 {qc} quiz</span>}
+                </div>
               </div>
-            </div>);
-            return(
-            <div key={a.id} onClick={()=>setSelArt(a)} style={{cursor:"pointer",borderBottom:"1px solid "+bdrC,paddingBottom:20,marginBottom:20,display:"flex",gap:18}}>
+            </div>
+          );
+          return(
+           <div key={a.id} onClick={()=>handleArticleClick(a)} style={{cursor:"pointer",borderBottom:"1px solid "+(dk?"#2a2a2a":"#eee"),paddingBottom:20,marginBottom:20,display:"flex",gap:18,transition:"opacity .15s"}} onMouseEnter={e=>e.currentTarget.style.opacity="0.8"} onMouseLeave={e=>e.currentTarget.style.opacity="1"}>
               <div style={{flex:1}}>
-                <span style={{fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.12em",color:bdgClr}}>{a.topics}</span>
-                <div style={{display:"flex",gap:6,marginBottom:6}}>
-                  <span style={{fontSize:10,fontWeight:700,color:lc[a.level]||"#888",background:(lc[a.level]||"#888")+"22",padding:"3px 10px",borderRadius:4}}>Level {a.level}</span>
-                  <span style={{fontSize:10,fontWeight:600,color:bdgClr,background:bdgBg,padding:"3px 10px",borderRadius:4}}>{vc} vocab · {qc} quiz</span>
+                <div style={{display:"flex",gap:6,marginBottom:5,alignItems:"center",flexWrap:"wrap"}}>
+                  <span style={{fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.1em",color:bdgClr}}>{a.topics}</span>
+                  <span style={{fontSize:10,fontWeight:700,color:lc[a.level]||"#888",background:(lc[a.level]||"#888")+"22",padding:"2px 8px",borderRadius:4}}>{ll[a.level]||"Level "+a.level}</span>
                 </div>
-                <h3 style={{fontSize:20,fontWeight:700,lineHeight:1.25,margin:"6px 0 6px",fontFamily:"'Playfair Display',serif",color:txtP}}>{a.title}</h3>
-                <p style={{fontSize:14,lineHeight:1.45,color:txtS,margin:0,fontFamily:"'Source Serif 4',serif",display:"-webkit-box",WebkitLineClamp:2,WebkitBoxOrient:"vertical",overflow:"hidden"}}>{a.body.split("\n\n")[0]}</p>
+                <h3 style={{fontSize:20,fontWeight:700,lineHeight:1.25,margin:"4px 0 6px",fontFamily:"'Playfair Display',serif",color:txtP}}>{a.title}</h3>
+                <p style={{fontSize:13,lineHeight:1.45,color:txtS,margin:"0 0 8px",fontFamily:"'Source Serif 4',serif",display:"-webkit-box",WebkitLineClamp:2,WebkitBoxOrient:"vertical",overflow:"hidden"}}>{a.body.split("\n\n")[0]}</p>
+                <div style={{display:"flex",gap:10,fontSize:11,color:txtM}}>
+                  {a.date&&<span>🗓 {String(a.date).split("T")[0]}</span>}
+                  {vc>0&&<span>📝 {vc} vocab</span>}
+                  {qc>0&&<span>🧠 {qc} quiz</span>}
+                </div>
               </div>
-              <div style={{width:140,minWidth:140,height:100,overflow:"hidden",borderRadius:4,flexShrink:0}}><img src={a.image} alt="" style={{width:"100%",height:"100%",objectFit:"cover",filter:dk?"grayscale(30%) brightness(0.8)":"grayscale(10%)"}}/></div>
-            </div>);
-          })}
-        </>)}
+              {a.image&&<div style={{width:130,minWidth:130,height:95,overflow:"hidden",borderRadius:6,flexShrink:0}}><img src={a.image} alt="" style={{width:"100%",height:"100%",objectFit:"cover",filter:dk?"grayscale(30%) brightness(0.8)":"grayscale(8%)"}}/></div>}
+            </div>
+          );
+        })}
       </div>
-      <div style={{borderTop:"2px solid "+bdrS,background:footBg,padding:"36px 24px",textAlign:"center",transition:"background .3s"}}>
-        <div style={{fontFamily:"'Playfair Display',serif",fontSize:18,fontWeight:900,color:C.goldLight,marginBottom:6}}>Tumbuh Academy · The Reading Room</div>
-        <p style={{fontSize:12,color:"rgba(255,255,255,0.3)"}}>Platform latihan bahasa Inggris untuk SNBT</p>
-      </div>
+     {/* LOGIN GATE MODAL */}
+      {showLoginGate&&<div onClick={()=>setShowLoginGate(false)} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.6)",backdropFilter:"blur(4px)",zIndex:9000,display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
+        <div onClick={e=>e.stopPropagation()} style={{background:"#fff",borderRadius:20,padding:"40px 32px",maxWidth:420,width:"100%",textAlign:"center",boxShadow:"0 20px 60px rgba(0,0,0,0.3)"}}>
+          <div style={{fontSize:48,marginBottom:16}}>🔒</div>
+          <h3 style={{fontFamily:"'DM Serif Display',serif",fontSize:"1.4rem",color:"#1E2A47",marginBottom:10}}>Login untuk Membaca</h3>
+          <p style={{color:"#6b7280",fontSize:14,lineHeight:1.6,marginBottom:8}}>Artikel ini hanya bisa diakses oleh pengguna yang sudah login.</p>
+          <p style={{color:"#9ca3af",fontSize:12,lineHeight:1.6,marginBottom:24}}>Tanpa login, kamu bisa membaca 2 artikel Level 1 dan 2 artikel Level 2 secara gratis.</p>
+          <button onClick={()=>setShowLoginGate(false)} style={{background:"none",border:"1px solid #d1d5db",color:"#6b7280",padding:"10px 20px",borderRadius:10,fontSize:13,fontWeight:600,cursor:"pointer"}}>Nanti saja</button>
+        </div>
+      </div>}
+      {/* LOGIN GATE MODAL */}
+      {showLoginGate&&<div onClick={()=>setShowLoginGate(false)} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.6)",backdropFilter:"blur(4px)",zIndex:9000,display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
+        <div onClick={e=>e.stopPropagation()} style={{background:"#fff",borderRadius:20,padding:"40px 32px",maxWidth:420,width:"100%",textAlign:"center",boxShadow:"0 20px 60px rgba(0,0,0,0.3)"}}>
+          <div style={{fontSize:48,marginBottom:16}}>🔒</div>
+          <h3 style={{fontFamily:"'DM Serif Display',serif",fontSize:"1.4rem",color:"#1E2A47",marginBottom:10}}>Login untuk Membaca</h3>
+          <p style={{color:"#6b7280",fontSize:14,lineHeight:1.6,marginBottom:8}}>Artikel ini hanya bisa diakses oleh pengguna yang sudah login.</p>
+          <p style={{color:"#9ca3af",fontSize:12,lineHeight:1.6,marginBottom:24}}>Tanpa login, kamu bisa membaca 2 artikel Level 1 dan 2 artikel Level 2 secara gratis.</p>
+          <button onClick={()=>setShowLoginGate(false)} style={{background:"none",border:"1px solid #d1d5db",color:"#6b7280",padding:"10px 20px",borderRadius:10,fontSize:13,fontWeight:600,cursor:"pointer"}}>Nanti saja</button>
+        </div>
+      </div>}
+        {/* LOGIN GATE MODAL */}
+      {showLoginGate&&<div onClick={()=>setShowLoginGate(false)} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.6)",backdropFilter:"blur(4px)",zIndex:9000,display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
+        <div onClick={e=>e.stopPropagation()} style={{background:"#fff",borderRadius:20,padding:"40px 32px",maxWidth:420,width:"100%",textAlign:"center",boxShadow:"0 20px 60px rgba(0,0,0,0.3)"}}>
+          <div style={{fontSize:48,marginBottom:16}}>🔒</div>
+          <h3 style={{fontFamily:"'DM Serif Display',serif",fontSize:"1.4rem",color:"#1E2A47",marginBottom:10}}>Login untuk Membaca</h3>
+          <p style={{color:"#6b7280",fontSize:14,lineHeight:1.6,marginBottom:8}}>Artikel ini hanya bisa diakses oleh pengguna yang sudah login.</p>
+          <p style={{color:"#9ca3af",fontSize:12,lineHeight:1.6,marginBottom:24}}>Tanpa login, kamu bisa membaca 2 artikel Level 1 dan 2 artikel Level 2 secara gratis.</p>
+          <button onClick={()=>setShowLoginGate(false)} style={{background:"none",border:"1px solid #d1d5db",color:"#6b7280",padding:"10px 20px",borderRadius:10,fontSize:13,fontWeight:600,cursor:"pointer"}}>Nanti saja</button>
+        </div>
+      </div>}
+      {/* LOGIN GATE MODAL */}
+      {showLoginGate&&<div onClick={()=>setShowLoginGate(false)} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.6)",backdropFilter:"blur(4px)",zIndex:9000,display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
+        <div onClick={e=>e.stopPropagation()} style={{background:"#fff",borderRadius:20,padding:"40px 32px",maxWidth:420,width:"100%",textAlign:"center",boxShadow:"0 20px 60px rgba(0,0,0,0.3)"}}>
+          <div style={{fontSize:48,marginBottom:16}}>🔒</div>
+          <h3 style={{fontFamily:"'DM Serif Display',serif",fontSize:"1.4rem",color:"#1E2A47",marginBottom:10}}>Login untuk Membaca</h3>
+          <p style={{color:"#6b7280",fontSize:14,lineHeight:1.6,marginBottom:8}}>Artikel ini hanya bisa diakses oleh pengguna yang sudah login.</p>
+          <p style={{color:"#9ca3af",fontSize:12,lineHeight:1.6,marginBottom:24}}>Tanpa login, kamu bisa membaca 2 artikel Level 1 dan 2 artikel Level 2 secara gratis.</p>
+          <button onClick={()=>setShowLoginGate(false)} style={{background:"none",border:"1px solid #d1d5db",color:"#6b7280",padding:"10px 20px",borderRadius:10,fontSize:13,fontWeight:600,cursor:"pointer"}}>Nanti saja</button>
+        </div>
+      </div>}
+      <TranslatePanel dark={dk} apiKey={GOOGLE_API_KEY}/>
     </div>
   );
 }

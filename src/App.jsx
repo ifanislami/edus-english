@@ -1594,7 +1594,7 @@ function ReadingModule({ supabase, currentUser }){
 // ═══════════════════════════════════════
 export default function App(){
   const [currentUser, setCurrentUser] = useState(null);
-  const [mod, setMod] = useState("landing"); // landing | vocab | reading | login | register | profile
+  const [mod, setMod] = useState("reading"); // vocab | reading | login | register | profile
   const [sessionLoaded, setSessionLoaded] = useState(false);
 
   useEffect(()=>{
@@ -1624,7 +1624,7 @@ export default function App(){
     const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
       if (session?.user) {
         setCurrentUser({ ...session.user, role: "user" });
-        setMod("landing");
+        setMod("reading");
       } else {
         setCurrentUser(null);
       }
@@ -1635,7 +1635,7 @@ export default function App(){
   const handleLogout = async () => {
     if (supabase) await supabase.auth.signOut();
     setCurrentUser(null);
-    setMod("landing");
+    setMod("reading");
   };
 
   const Header = () => {
@@ -1645,7 +1645,7 @@ export default function App(){
       <div style={{background:C.navyDark,padding:0,position:"sticky",top:0,zIndex:500}}>
         <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"0 20px",maxWidth:1200,margin:"0 auto"}}>
           {/* Home icon logo */}
-          <div onClick={()=>setMod("landing")} title="Beranda" style={{display:"flex",alignItems:"center",padding:"14px 8px",cursor:"pointer",flexShrink:0}}>
+          <div onClick={()=>setMod("reading")} title="Beranda" style={{display:"flex",alignItems:"center",padding:"14px 8px",cursor:"pointer",flexShrink:0}}>
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={mod==="landing"?"#fff":"rgba(255,255,255,0.45)"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M3 9.5L12 3l9 6.5V20a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9.5z"/>
               <polyline points="9 21 9 12 15 12 15 21"/>
@@ -1653,7 +1653,7 @@ export default function App(){
           </div>
 
           {/* Brand name */}
-          <div onClick={()=>setMod("landing")} style={{cursor:"pointer",padding:"0 12px",flexShrink:0}}>
+          <div onClick={()=>setMod("reading")} style={{cursor:"pointer",padding:"0 12px",flexShrink:0}}>
             <span style={{fontFamily:"'DM Serif Display',serif",color:"#fff",fontSize:"1.1rem"}}>Tumbuh<span style={{color:"#F39C12"}}>Academy</span></span>
           </div>
 
@@ -1707,114 +1707,6 @@ export default function App(){
     );
   };
 
-  const Landing=()=>(
-    <div style={{background:"#F4F6F9",minHeight:"100vh",animation:"fadeIn .5s ease-out"}}>
-
-      {/* ── HERO ── */}
-      <div style={{background:"#1E2A47",padding:"52px 28px 100px",textAlign:"center",position:"relative",overflow:"hidden"}}>
-        {/* decorative dots grid */}
-        <div style={{position:"absolute",inset:0,backgroundImage:"radial-gradient(circle,rgba(255,255,255,0.06) 1px,transparent 1px)",backgroundSize:"32px 32px",pointerEvents:"none"}}/>
-        {/* orange accent blob */}
-        <div style={{position:"absolute",bottom:-60,left:"50%",transform:"translateX(-50%)",width:600,height:120,borderRadius:"50%",background:"rgba(243,156,18,0.12)",filter:"blur(32px)",pointerEvents:"none"}}/>
-
-        <div style={{position:"relative",zIndex:1}}>
-          {/* headline */}
-          <h1 style={{fontFamily:"'DM Serif Display',serif",color:"#fff",fontSize:"clamp(2rem,5vw,3.2rem)",lineHeight:1.15,maxWidth:680,margin:"0 auto 8px"}}>
-            Baca. Pahami. Latihan.
-          </h1>
-          <h2 style={{fontFamily:"'DM Serif Display',serif",color:"#F39C12",fontSize:"clamp(1rem,2.5vw,1.4rem)",lineHeight:1.3,maxWidth:600,margin:"0 auto 18px",fontWeight:400}}>
-            Platform Latihan Reading Bahasa Inggris
-          </h2>
-
-          {/* subheader */}
-          <p style={{color:"rgba(255,255,255,0.6)",fontSize:"0.9rem",lineHeight:1.75,maxWidth:520,margin:"0 auto 28px"}}>
-            Belajar <strong style={{color:"rgba(255,255,255,0.85)"}}>500+ vocab</strong>, <strong style={{color:"rgba(255,255,255,0.85)"}}>100+ artikel</strong> saintek dan soshum, dan <strong style={{color:"rgba(255,255,255,0.85)"}}>500+ latihan soal</strong>. Dirancang agar siswa punya habit baca yang terukur.
-          </p>
-
-          {/* CTA buttons */}
-          <div style={{display:"flex",gap:12,justifyContent:"center",flexWrap:"wrap"}}>
-            <button onClick={()=>setMod("reading")} style={{background:"#F39C12",border:"none",color:"#fff",padding:"12px 26px",borderRadius:10,fontFamily:"'DM Sans',sans-serif",fontWeight:700,fontSize:"0.88rem",cursor:"pointer",transition:"all .18s",boxShadow:"0 4px 20px rgba(243,156,18,0.4)"}}
-              onMouseEnter={e=>{e.currentTarget.style.background="#e08e0b";e.currentTarget.style.transform="translateY(-2px)";}}
-              onMouseLeave={e=>{e.currentTarget.style.background="#F39C12";e.currentTarget.style.transform="none";}}>
-              Mulai Reading →
-            </button>
-            <button onClick={()=>setMod("vocab")} style={{background:"transparent",border:"2px solid rgba(255,255,255,0.25)",color:"rgba(255,255,255,0.85)",padding:"12px 26px",borderRadius:10,fontFamily:"'DM Sans',sans-serif",fontWeight:600,fontSize:"0.88rem",cursor:"pointer",transition:"all .18s"}}
-              onMouseEnter={e=>{e.currentTarget.style.borderColor="rgba(255,255,255,0.6)";e.currentTarget.style.color="#fff";}}
-              onMouseLeave={e=>{e.currentTarget.style.borderColor="rgba(255,255,255,0.25)";e.currentTarget.style.color="rgba(255,255,255,0.85)";}}>
-              Latihan Vocab
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* ── FITUR CARDS ── */}
-      <div style={{maxWidth:860,margin:"-52px auto 0",padding:"0 24px",position:"relative",zIndex:2}}>
-        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(260px,1fr))",gap:20}}>
-
-          {/* Vocab card */}
-          <div onClick={()=>setMod("vocab")} style={{background:"#fff",borderRadius:20,padding:"36px 30px 32px",boxShadow:"0 8px 40px rgba(30,42,71,0.12)",cursor:"pointer",transition:"all .22s",border:"2px solid transparent",position:"relative",overflow:"hidden"}}
-            onMouseEnter={e=>{e.currentTarget.style.borderColor="#F39C12";e.currentTarget.style.transform="translateY(-5px)";e.currentTarget.style.boxShadow="0 16px 48px rgba(30,42,71,0.18)";}}
-            onMouseLeave={e=>{e.currentTarget.style.borderColor="transparent";e.currentTarget.style.transform="none";e.currentTarget.style.boxShadow="0 8px 40px rgba(30,42,71,0.12)";}}>
-            <div style={{position:"absolute",top:-20,right:-20,width:100,height:100,borderRadius:"50%",background:"rgba(243,156,18,0.07)"}}/>
-            <div style={{width:52,height:52,borderRadius:14,background:"#FEF3CD",display:"flex",alignItems:"center",justifyContent:"center",fontSize:24,marginBottom:20}}>📝</div>
-            <div style={{fontFamily:"'DM Serif Display',serif",fontSize:"1.3rem",color:"#1E2A47",marginBottom:10}}>Latihan Vocab</div>
-            <p style={{color:"#6b7280",fontSize:"0.85rem",lineHeight:1.65,marginBottom:20}}>Tes seberapa luas cakupan vocab kamu. Ada pilihan vocab mudah dan susah.</p>
-            <div style={{display:"inline-flex",alignItems:"center",gap:6,color:"#F39C12",fontSize:"0.82rem",fontWeight:700}}>
-              Mulai sekarang <span>→</span>
-            </div>
-          </div>
-
-          {/* Reading card */}
-          <div onClick={()=>setMod("reading")} style={{background:"#1E2A47",borderRadius:20,padding:"36px 30px 32px",boxShadow:"0 8px 40px rgba(30,42,71,0.2)",cursor:"pointer",transition:"all .22s",border:"2px solid transparent",position:"relative",overflow:"hidden"}}
-            onMouseEnter={e=>{e.currentTarget.style.borderColor="#F39C12";e.currentTarget.style.transform="translateY(-5px)";e.currentTarget.style.boxShadow="0 16px 48px rgba(30,42,71,0.3)";}}
-            onMouseLeave={e=>{e.currentTarget.style.borderColor="transparent";e.currentTarget.style.transform="none";e.currentTarget.style.boxShadow="0 8px 40px rgba(30,42,71,0.2)";}}>
-            <div style={{position:"absolute",top:-20,right:-20,width:100,height:100,borderRadius:"50%",background:"rgba(243,156,18,0.1)"}}/>
-            <div style={{width:52,height:52,borderRadius:14,background:"rgba(243,156,18,0.15)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:24,marginBottom:20}}>📰</div>
-            <div style={{fontFamily:"'DM Serif Display',serif",fontSize:"1.3rem",color:"#fff",marginBottom:10}}>Ayo Reading!</div>
-            <p style={{color:"rgba(255,255,255,0.6)",fontSize:"0.85rem",lineHeight:1.65,marginBottom:20}}>Lebih dari 100+ berita/artikel up-to-date dengan berbagai tema.</p>
-            <div style={{display:"inline-flex",alignItems:"center",gap:6,color:"#F39C12",fontSize:"0.82rem",fontWeight:700}}>
-              Baca sekarang <span>→</span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* ── STATS BAR ── */}
-      <div style={{maxWidth:860,margin:"28px auto 0",padding:"0 24px"}}>
-        <div style={{background:"#fff",borderRadius:16,padding:"22px 32px",boxShadow:"0 2px 16px rgba(30,42,71,0.06)",display:"flex",alignItems:"center",justifyContent:"space-around",flexWrap:"wrap",gap:16}}>
-          {[["500+","Kosakata"],["100+","Artikel"],["500+","Latihan Soal"]].map(([num,label])=>(
-            <div key={label} style={{textAlign:"center"}}>
-              <div style={{fontFamily:"'DM Serif Display',serif",fontSize:"1.8rem",color:"#1E2A47",lineHeight:1}}>{num}</div>
-              <div style={{fontSize:"0.78rem",color:"#9ca3af",marginTop:4,fontWeight:500}}>{label}</div>
-            </div>
-          ))}
-          <div style={{width:1,height:40,background:"#e5e7eb",flexShrink:0}}/>
-          <div style={{textAlign:"center"}}>
-            <div style={{fontFamily:"'DM Serif Display',serif",fontSize:"1.8rem",color:"#F39C12",lineHeight:1}}>50+</div>
-            <div style={{fontSize:"0.78rem",color:"#9ca3af",marginTop:4,fontWeight:500}}>Siswa Aktif</div>
-          </div>
-        </div>
-      </div>
-
-      {/* ── TESTIMONI ── */}
-      <div style={{background:"#1E2A47",margin:"52px 0 0",padding:"60px 28px"}}>
-        <div style={{maxWidth:620,margin:"0 auto",textAlign:"center"}}>
-          <div style={{fontSize:"2.2rem",marginBottom:16}}>⭐</div>
-          <blockquote style={{fontFamily:"'DM Serif Display',serif",color:"#fff",fontSize:"1.25rem",lineHeight:1.6,fontStyle:"italic",marginBottom:20}}>
-            "Platform sudah digunakan oleh 50+ siswa SMA/MA dalam 3 bulan terakhir."
-          </blockquote>
-          <div style={{width:48,height:3,background:"#F39C12",borderRadius:2,margin:"0 auto 20px"}}/>
-          <p style={{color:"rgba(255,255,255,0.45)",fontSize:"0.8rem",letterSpacing:"0.08em",textTransform:"uppercase",fontWeight:600}}>Tumbuh Academy · 2026</p>
-        </div>
-      </div>
-
-      {/* ── FOOTER ── */}
-      <div style={{textAlign:"center",padding:"24px 24px 36px",background:"#F4F6F9"}}>
-        <p style={{color:"#9ca3af",fontSize:"0.78rem"}}>© 2026 Tumbuh Academy · Platform persiapan bahasa Inggris</p>
-      </div>
-    </div>
-  );
-
   // Tunggu session check selesai dulu sebelum render
   if (!sessionLoaded) return null;
 
@@ -1829,7 +1721,7 @@ export default function App(){
       <div>
         <Header />
         <LoginPage
-          onLoginSuccess={(u) => { setCurrentUser(u); setMod("landing"); }}
+          onLoginSuccess={(u) => { setCurrentUser(u); setMod("reading"); }}
           onGoToRegister={() => setMod("register")}
           supabase={supabase}
         />
@@ -1850,7 +1742,6 @@ export default function App(){
   return (
     <div>
       <Header />
-      {mod === "landing"  && <Landing />}
       {mod === "vocab"    && <VocabModule supabase={supabase} currentUser={currentUser} />}
       {mod === "reading"  && <ReadingModule supabase={supabase} currentUser={currentUser} />}
       {mod === "profile"  && currentUser && <UserProfile user={currentUser} onLogout={handleLogout} supabase={supabase} />}

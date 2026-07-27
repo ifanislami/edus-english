@@ -58,9 +58,6 @@ export function UserProfile({ user, onLogout, supabase }) {
           <div>
             <h2 style={{ fontFamily: "'DM Serif Display',serif", fontSize: 20, margin: "0 0 4px" }}>Profile Saya</h2>
             <p style={{ color: "rgba(255,255,255,0.6)", fontSize: 13, margin: 0 }}>{user.email}</p>
-            <p style={{ color: "rgba(255,255,255,0.6)", fontSize: 13, margin: "4px 0 0", textTransform: "uppercase" }}>
-              Plan: {user.plan}
-            </p>
           </div>
           <button
             onClick={onLogout}

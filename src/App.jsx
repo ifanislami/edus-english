@@ -1,13 +1,13 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
-import { LoginPage, PremiumRequestPage } from "./AuthPages";
-import { AdminDashboard } from "./AdminDashboard";
+import { LoginPage } from "./AuthPages";
 import { UserProfile } from "./UserProfile";
 import { createClient } from "@supabase/supabase-js";
 
 
 // SUPABASE CONFIG - ISI DI SINI
-const SUPABASE_URL = "https://ufozejengrvgdunqrrqu.supabase.co"; 
-const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVmb3plamVuZ3J2Z2R1bnFycnF1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk1MzU3MjAsImV4cCI6MjA5NTExMTcyMH0.hGRxp3jt_tQjU1zfOMA8RyFGYsPLqSOckDQ5Ic7Fj_0";
+// Pakai project Supabase Evalum supaya 1 akun (login) berlaku di Tumbuh Academy & Evalum
+const SUPABASE_URL = "https://veitnzxztfumzkpujkcz.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZlaXRuenh6dGZ1bXprcHVqa2N6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEzNDIzMzcsImV4cCI6MjA5NjkxODMzN30.oUCUOxgIEYCnZRngj3-nm2NxLUsuPU01wVeSbAx2E-w";
 const supabase = SUPABASE_URL && SUPABASE_ANON_KEY ? createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
 // ─── CONFIGURATION ──────────────────────────────────────────────────────────
 // Isi kedua key ini di Google Cloud Console (https://console.cloud.google.com)
@@ -939,13 +939,17 @@ function VocabPracticeTab({vl, dark:dk, C, txtP, txtS, bdgBg, bgCard, bdrC}){
 // ═══════════════════════════════════════
 // READING QUIZ
 // ═══════════════════════════════════════
-function ReadingQuiz({questions,dark:dk,onAnswersChange}){
+function ReadingQuiz({questions,dark:dk,onAnswersChange,onSubmit}){
   const [ans,setAns]=useState({});
   const [done,setDone]=useState(false);
   // Notify parent when answers change
   useEffect(() => {
     if (onAnswersChange) onAnswersChange(ans);
   }, [ans, onAnswersChange]);
+  // Notify parent once the quiz is actually submitted
+  useEffect(() => {
+    if (done && onSubmit) onSubmit();
+  }, [done, onSubmit]);
   const sc=useMemo(()=>done?questions.reduce((a,q)=>a+(ans[q.qid]===q.answer?1:0),0):0,[done,ans,questions]);
   const qBg=dk?"#1a1a1a":"#f5f1ea";const qBdr=dk?"#2a2a2a":"#e0d9cd";const qTxt=dk?"#f0ece4":"#1a1a1a";
   const oBg=dk?"#242424":"#fff";const oBdr=dk?"#333":"#d8d3c8";const oClr=dk?"#d4cfc8":"#333";
@@ -1137,10 +1141,22 @@ function ReadingModule({ supabase, currentUser }){
   const [sheetsStatus,setSheetsStatus]=useState("idle"); // idle|loading|ok|error
   const [uploadStatus,setUploadStatus]=useState("");
   const [readingAns, setReadingAns] = useState({});
+  const [quizSubmitted, setQuizSubmitted] = useState(false);
   const [langMode, setLangMode] = useState("en"); // "en"|"id" body language toggle
   const [featuredIds, setFeaturedIds] = useState(new Set(["A1","A2","A3"])); // Featured top articles
   const [levelFilter, setLevelFilter] = useState("all"); // Level filter 1/2/3/4/all
   const [showLoginGate, setShowLoginGate] = useState(false);
+  const [completedIds, setCompletedIds] = useState(new Set()); // article ids whose quiz is already answered
+
+  // Load which articles this user already finished the quiz for, so they can be hidden from the list
+  useEffect(() => {
+    if (!supabase || !currentUser) { setCompletedIds(new Set()); return; }
+    supabase.from("reading_progress").select("article_id").eq("user_id", currentUser.id)
+      .then(({ data, error }) => {
+        if (error) { console.error("Error loading reading progress:", error); return; }
+        setCompletedIds(new Set((data || []).map(r => r.article_id)));
+      });
+  }, [supabase, currentUser]);
 
   // Free access: non-logged-in users get first 2 articles of Level 1 + first 2 of Level 2
   const freeArticleIds = useMemo(() => {
@@ -1152,7 +1168,7 @@ function ReadingModule({ supabase, currentUser }){
   const isArticleFree = (a) => currentUser || freeArticleIds.has(a.id);
 
   const handleArticleClick = (a) => {
-    if (isArticleFree(a)) { setSelArt(a); } else { setShowLoginGate(true); }
+    if (isArticleFree(a)) { setSelArt(a); setReadingAns({}); setQuizSubmitted(false); } else { setShowLoginGate(true); }
   };
   // Fetch from Google Sheets on mount — 3 sheets: articles, vocab, quiz_article
   useEffect(()=>{
@@ -1226,6 +1242,7 @@ function ReadingModule({ supabase, currentUser }){
   const filt=useMemo(()=>{
     let f=cat==="all"?articles:articles.filter(a=>a.topics.toLowerCase().includes(cat.toLowerCase()));
     if(levelFilter!=="all") f=f.filter(a=>a.level===levelFilter);
+    f=f.filter(a=>!completedIds.has(a.id)); // hide articles whose quiz is already answered — they live in profile history instead
     // Sort by date descending (newest first)
     f=[...f].sort((a,b)=>{
       const da=a.date?new Date(a.date):new Date(0);
@@ -1233,7 +1250,7 @@ function ReadingModule({ supabase, currentUser }){
       return db-da;
     });
     return f;
-  },[articles,cat,levelFilter]);
+  },[articles,cat,levelFilter,completedIds]);
 
   const delChecked=()=>{if(checked.size===0)return;setArticles(p=>p.filter(a=>!checked.has(a.id)));setArtVocab(p=>p.filter(v=>!checked.has(v.aid)));setRdQuiz(p=>p.filter(q=>!checked.has(q.aid)));setChecked(new Set());};
   const togCheck=id=>setChecked(p=>{const n=new Set(p);n.has(id)?n.delete(id):n.add(id);return n;});
@@ -1259,30 +1276,26 @@ function ReadingModule({ supabase, currentUser }){
   const hintBg=dk?"rgba(201,168,76,0.1)":"#f0ece4";
   const footBg=dk?"#070707":"#1a1a1a";
 
-  // Save reading progress to database
+  // Save reading progress to database — only once the quiz has actually been submitted,
+  // so the article moves into profile history and disappears from the reading list.
   const saveReadingProgress = async () => {
-  console.log("✅ STEP 1: saveReadingProgress called");
-  console.log("✅ STEP 2: supabase =", supabase);
-  console.log("✅ STEP 3: currentUser =", currentUser);
-  console.log("✅ STEP 4: selArt =", selArt);
-  
-  if (!supabase || !currentUser || !selArt) {
-    console.log("Missing required data, returning");
-    return;
-  }
-  
-  try {
+    if (!supabase || !currentUser || !selArt || !quizSubmitted) return;
+    if (gq(selArt.id).length === 0) return; // no quiz to answer — nothing to mark as completed
+
+    try {
       const vocabCount = gv(selArt.id).length;
       const quizCount = Object.keys(readingAns || {}).length;
-      
-      await supabase.from("reading_progress").insert({
+
+      const { error } = await supabase.from("reading_progress").upsert({
         user_id: currentUser.id,
         article_id: selArt.id,
         vocab_completed: vocabCount,
         quiz_answered: quizCount,
         completed_at: new Date().toISOString()
-      });
-      console.log("✅ Reading progress saved!");
+      }, { onConflict: "user_id,article_id" });
+
+      if (error) throw error;
+      setCompletedIds(prev => new Set(prev).add(selArt.id));
     } catch (err) {
       console.error("Error saving reading progress:", err);
     }
@@ -1461,7 +1474,7 @@ function ReadingModule({ supabase, currentUser }){
           </div>}
 
           {artTab==="vocab"&&<VocabPracticeTab vl={vl} dark={dk} C={C} txtP={txtP} txtS={txtS} bdgBg={bdgBg} bgCard={bgCard} bdrC={bdrC}/>}
-          {artTab==="quiz"&&<ReadingQuiz questions={ql} dark={dk} onAnswersChange={setReadingAns}/>}
+          {artTab==="quiz"&&<ReadingQuiz questions={ql} dark={dk} onAnswersChange={setReadingAns} onSubmit={()=>setQuizSubmitted(true)}/>}
         </article>
         <TranslatePanel dark={dk} apiKey={GOOGLE_API_KEY}/>
       </div>
@@ -1594,7 +1607,7 @@ function ReadingModule({ supabase, currentUser }){
 // ═══════════════════════════════════════
 export default function App(){
   const [currentUser, setCurrentUser] = useState(null);
-  const [mod, setMod] = useState("reading"); // vocab | reading | login | register | profile
+  const [mod, setMod] = useState("reading"); // vocab | reading | login | profile
   const [sessionLoaded, setSessionLoaded] = useState(false);
 
   useEffect(()=>{
@@ -1616,14 +1629,14 @@ export default function App(){
     if (!supabase) { setSessionLoaded(true); return; }
     supabase.auth.getSession().then(({ data }) => {
       if (data.session?.user) {
-        setCurrentUser({ ...data.session.user, role: "user" });
+        setCurrentUser(data.session.user);
       }
       setSessionLoaded(true);
     });
     // Listen for auth state changes (e.g. after OAuth redirect)
     const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
       if (session?.user) {
-        setCurrentUser({ ...session.user, role: "user" });
+        setCurrentUser(session.user);
         setMod("reading");
       } else {
         setCurrentUser(null);
@@ -1646,7 +1659,7 @@ export default function App(){
         <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"0 20px",maxWidth:1200,margin:"0 auto"}}>
           {/* Home icon logo */}
           <div onClick={()=>setMod("reading")} title="Beranda" style={{display:"flex",alignItems:"center",padding:"14px 8px",cursor:"pointer",flexShrink:0}}>
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={mod==="landing"?"#fff":"rgba(255,255,255,0.45)"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={mod==="reading"?"#fff":"rgba(255,255,255,0.45)"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M3 9.5L12 3l9 6.5V20a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9.5z"/>
               <polyline points="9 21 9 12 15 12 15 21"/>
             </svg>
@@ -1710,30 +1723,15 @@ export default function App(){
   // Tunggu session check selesai dulu sebelum render
   if (!sessionLoaded) return null;
 
-  // Admin dashboard — full takeover
-  if (currentUser?.role === "admin") {
-    return <AdminDashboard user={currentUser} onLogout={handleLogout} supabase={supabase} />;
-  }
-
-  // Login / Register pages — tetap dengan header supaya bisa balik
+  // Login page — tetap dengan header supaya bisa balik
   if (mod === "login") {
     return (
       <div>
         <Header />
         <LoginPage
           onLoginSuccess={(u) => { setCurrentUser(u); setMod("reading"); }}
-          onGoToRegister={() => setMod("register")}
           supabase={supabase}
         />
-      </div>
-    );
-  }
-
-  if (mod === "register") {
-    return (
-      <div>
-        <Header />
-        <PremiumRequestPage onBackToLogin={() => setMod("login")} supabase={supabase} />
       </div>
     );
   }

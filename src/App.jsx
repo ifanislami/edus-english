@@ -13,10 +13,8 @@ const supabase = SUPABASE_URL && SUPABASE_ANON_KEY ? createClient(SUPABASE_URL, 
 // Isi kedua key ini di Google Cloud Console (https://console.cloud.google.com)
 // 1. Aktifkan "Google Sheets API" + "Cloud Translation API"
 // 2. Buat API Key, restrict ke Sheets API + Translation API + HTTP referrer
-// Google Sheet SENGAJA DI-UNLINK sementara (untuk keperluan tutorial) — app fallback ke data statis bawaan (INIT_ARTICLES dkk).
-// Nilai aslinya masih ada di riwayat git; minta sambungkan lagi kapan saja.
-const GOOGLE_API_KEY = ""; // ← API key untuk Sheets + Translate
-const SHEETS_ID = "";      // ← ID spreadsheet (dari URL Google Sheets)
+const GOOGLE_API_KEY = "AIzaSyDB-a5yC5i75uCZBi9Du_PpffYznQxfDYs"; // ← API key untuk Sheets + Translate
+const SHEETS_ID = "1no9cVz73NQV2z5TZdGcc0x-wKd5Xh4nO6emWdvtxJro";      // ← ID spreadsheet (dari URL Google Sheets)
 // Sheet names — harus sama persis dengan nama tab di Sheets
 const SHEET_ARTICLES = "articles";
 const SHEET_VOCAB = "vocab_quiz"; // for standalone vocab quiz

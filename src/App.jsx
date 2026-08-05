@@ -20,6 +20,7 @@ const SHEET_ARTICLES = "articles";
 const SHEET_VOCAB = "vocab_quiz"; // for standalone vocab quiz
 const SHEET_RD_VOCAB = "vocab"; // for reading module
 const SHEET_RD_QUIZ = "quiz_article"; // for reading module
+const SHEETS_CACHE_KEY = "edus_sheets_cache_v1"; // localStorage cache for reading data
 // ─────────────────────────────────────────────────────────────────────────────
 
 // ═══════════════════════════════════════
@@ -1122,6 +1123,120 @@ function TopikDropdown({ cat, setCat, dark }) {
   );
 }
 
+// ═══════════════════════════════════════
+// ARTICLE LIST SKELETON (shown while sheets load & no cache yet)
+// ═══════════════════════════════════════
+function ArticleSkeleton({ dark }){
+  const pulse={background:dark?"#2a2a2a":"#ece7de",borderRadius:6,animation:"skPulse 1.2s ease-in-out infinite"};
+  return(
+    <div style={{maxWidth:1100,margin:"0 auto",padding:"20px 24px 60px"}}>
+      <div style={{display:"grid",gridTemplateColumns:"1.1fr 1fr",gap:36,marginBottom:40,paddingBottom:40,borderBottom:"2px solid "+(dark?"#2a2a2a":"#e0dcd5")}}>
+        <div style={{aspectRatio:"4/3",borderRadius:8,...pulse}}/>
+        <div>
+          <div style={{...pulse,width:90,height:12,marginBottom:14}}/>
+          <div style={{...pulse,width:"78%",height:28,marginBottom:14}}/>
+          <div style={{...pulse,width:"58%",height:28,marginBottom:18}}/>
+          <div style={{...pulse,width:"100%",height:14,marginBottom:9}}/>
+          <div style={{...pulse,width:"94%",height:14,marginBottom:9}}/>
+          <div style={{...pulse,width:"72%",height:14}}/>
+        </div>
+      </div>
+      {[0,1,2].map(i=>(
+        <div key={i} style={{display:"grid",gridTemplateColumns:"230px 1fr",gap:24,marginBottom:28,paddingBottom:28,borderBottom:"1px solid "+(dark?"#2a2a2a":"#e0dcd5")}}>
+          <div style={{aspectRatio:"16/10",borderRadius:8,...pulse}}/>
+          <div>
+            <div style={{...pulse,width:80,height:11,marginBottom:12}}/>
+            <div style={{...pulse,width:"64%",height:20,marginBottom:12}}/>
+            <div style={{...pulse,width:"100%",height:13,marginBottom:8}}/>
+            <div style={{...pulse,width:"88%",height:13}}/>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════
+// PODCAST BUKU — rekomendasi podcast buku bahasa Indonesia
+// ═══════════════════════════════════════
+const PODCAST_BUKU = [
+  { id:"ah", icon:"📚", title:"The Atomic Habits Workbook", author:"James Clear", year:"2025", desc:"Panduan praktis membangun kebiasaan baik dan menghentikan kebiasaan buruk lewat perubahan kecil yang konsisten.", url:"https://www.youtube.com/watch?v=EjsOVI6jhFs&list=PLVkOdA10Gcho" },
+  { id:"sc", icon:"💬", title:"Supercommunicators", author:"Charles Duhigg", year:"2024", desc:"Membedah ilmu komunikasi: tiga jenis percakapan dan cara terhubung dengan siapa pun.", url:"https://www.youtube.com/watch?v=Ssp_6hXQrZE&list=PLVkOdA10Gcho&index=2" },
+  { id:"lt", icon:"🕊️", title:"The Let Them Theory", author:"Mel Robbins", year:"2024", desc:"Filosofi melepas kendali atas orang lain agar kamu fokus pada yang bisa kamu kendalikan: dirimu sendiri.", url:"https://www.youtube.com/watch?v=U6LDy_WeQoQ&list=PLVkOdA10Gcho&index=3" },
+  { id:"ps", icon:"🧩", title:"Problem Solving 101", author:"Ken Watanabe", year:"2007", desc:"Kerangka berpikir sederhana untuk memecahkan masalah dengan jernih, dari yang kecil hingga yang kompleks.", url:"https://www.youtube.com/watch?v=AiML-SkvXz4&list=PLVkOdA10Gcho&index=4" },
+  { id:"wn", icon:"🌏", title:"Why Nations Fail", author:"Daron Acemoglu & James Robinson", year:"2012", desc:"Mengapa ada negara maju dan ada yang tertinggal? Kuncinya terletak pada institusi politik dan ekonominya.", url:"https://www.youtube.com/watch?v=I-hYerihcS4&list=PLVkOdA10Gcho&index=5" },
+];
+
+function PodcastSlider({ dark, onSeeMore }){
+  const ref=useRef(null);
+  const scroll=(dir)=>ref.current?.scrollBy({left:dir*220,behavior:"smooth"});
+  const cardBg=dark?"#1a1a1a":"#fff";
+  const bdrC=dark?"#333":"#eee";
+  const txtP=dark?"#f0ece4":"#1a1a1a";
+  const txtS=dark?"rgba(240,236,228,0.5)":"#718096";
+  const btn=dark?"rgba(255,255,255,0.15)":"#fff";
+  return(
+    <div style={{position:"relative"}}>
+      <div ref={ref} style={{display:"flex",gap:14,overflowX:"auto",scrollbarWidth:"none",WebkitOverflowScrolling:"touch",padding:"2px 2px 10px"}}>
+        {PODCAST_BUKU.map(p=>(
+          <div key={p.id} onClick={()=>window.open(p.url,"_blank","noopener")} style={{flexShrink:0,width:200,background:cardBg,borderRadius:14,padding:18,border:"1px solid "+bdrC,cursor:"pointer",boxShadow:dark?"none":"0 4px 18px rgba(26,39,68,0.08)",transition:"all .18s",display:"flex",flexDirection:"column"}}
+            onMouseEnter={e=>{e.currentTarget.style.transform="translateY(-3px)";e.currentTarget.style.boxShadow=dark?"0 6px 24px rgba(0,0,0,0.4)":"0 8px 24px rgba(26,39,68,0.14)";}}
+            onMouseLeave={e=>{e.currentTarget.style.transform="none";e.currentTarget.style.boxShadow=dark?"none":"0 4px 18px rgba(26,39,68,0.08)";}}>
+            <div style={{fontSize:30,marginBottom:12}}>{p.icon}</div>
+            <div style={{fontWeight:700,fontSize:"0.85rem",color:txtP,marginBottom:4,lineHeight:1.3}}>{p.title}</div>
+            <div style={{fontSize:"0.72rem",color:txtS}}>{p.author} · {p.year}</div>
+          </div>
+        ))}
+        <div onClick={onSeeMore} style={{flexShrink:0,width:200,borderRadius:14,padding:18,cursor:"pointer",background:"linear-gradient(135deg,#1a2744,#243358)",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:8,color:"#fff",textAlign:"center"}}>
+          <span style={{fontSize:26}}>🎧</span>
+          <span style={{fontSize:"0.85rem",fontWeight:700}}>Lebih banyak</span>
+          <span style={{fontSize:"0.7rem",color:"rgba(255,255,255,0.6)"}}>{PODCAST_BUKU.length} podcast buku</span>
+          <span style={{fontSize:"1.2rem",color:"#F39C12",lineHeight:1}}>›</span>
+        </div>
+      </div>
+      <button onClick={()=>scroll(-1)} aria-label="Geser kiri" style={{position:"absolute",left:-8,top:"46%",transform:"translateY(-50%)",width:32,height:32,borderRadius:"50%",background:btn,border:"1px solid "+(dark?"#444":"#d8d3c8"),color:txtP,cursor:"pointer",fontSize:15,display:"flex",alignItems:"center",justifyContent:"center",boxShadow:"0 2px 8px rgba(0,0,0,0.15)",zIndex:2}}>‹</button>
+      <button onClick={()=>scroll(1)} aria-label="Geser kanan" style={{position:"absolute",right:-8,top:"46%",transform:"translateY(-50%)",width:32,height:32,borderRadius:"50%",background:btn,border:"1px solid "+(dark?"#444":"#d8d3c8"),color:txtP,cursor:"pointer",fontSize:15,display:"flex",alignItems:"center",justifyContent:"center",boxShadow:"0 2px 8px rgba(0,0,0,0.15)",zIndex:2}}>›</button>
+    </div>
+  );
+}
+
+function PodcastBukuPage({ onBack, dark }){
+  const txtP=dark?"#f0ece4":"#1a1a1a";
+  const txtS=dark?"rgba(240,236,228,0.55)":"#666";
+  const bgCard=dark?"#1a1a1a":"#fff";
+  const bdrC=dark?"#333":"#ddd";
+  return(
+    <div style={{minHeight:"100vh",background:dark?"#0f0f0f":"#faf7f2",fontFamily:"'Source Sans 3',sans-serif"}}>
+      <div style={{position:"sticky",top:48,zIndex:100,background:dark?"rgba(15,15,15,0.97)":"rgba(250,247,242,0.95)",backdropFilter:"blur(10px)",borderBottom:"1px solid "+bdrC,padding:"12px 0"}}>
+        <div style={{maxWidth:900,margin:"0 auto",padding:"0 24px",display:"flex",alignItems:"center",gap:16}}>
+          <button onClick={onBack} style={{background:"none",border:"none",cursor:"pointer",fontSize:14,fontWeight:600,color:"#8b7355",fontFamily:"'Source Sans 3',sans-serif"}}>← Kembali</button>
+          <span style={{fontFamily:"'Playfair Display',serif",fontSize:20,color:txtP}}>🎧 Podcast Buku</span>
+        </div>
+      </div>
+      <div style={{maxWidth:900,margin:"0 auto",padding:"32px 24px 80px"}}>
+        <p style={{fontSize:14,color:txtS,lineHeight:1.6,marginBottom:24,fontFamily:"'Source Serif 4',serif"}}>
+          Rekomendasi podcast berbahasa Indonesia yang membahas buku, literasi, dan budaya membaca. Cocok menemani kamu belajar dan menambah wawasan.
+        </p>
+        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(260px,1fr))",gap:16}}>
+          {PODCAST_BUKU.map(p=>(
+            <div key={p.id} style={{background:bgCard,borderRadius:14,padding:20,border:"1px solid "+bdrC,display:"flex",flexDirection:"column",boxShadow:dark?"none":"0 2px 12px rgba(26,39,68,0.06)"}}>
+              <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:12}}>
+                <div style={{width:44,height:44,borderRadius:12,background:"#FEF3CD",display:"flex",alignItems:"center",justifyContent:"center",fontSize:20,flexShrink:0}}>{p.icon}</div>
+                <div>
+                  <div style={{fontWeight:700,fontSize:15,color:txtP,lineHeight:1.3}}>{p.title}</div>
+                  <div style={{fontSize:12,color:C.sage,fontWeight:600,marginTop:2}}>{p.author} · {p.year}</div>
+                </div>
+              </div>
+              <p style={{fontSize:13,color:txtS,lineHeight:1.55,marginBottom:16,flex:1}}>{p.desc}</p>
+              <a href={p.url} target="_blank" rel="noopener noreferrer" style={{display:"inline-flex",alignItems:"center",gap:6,alignSelf:"flex-start",padding:"8px 16px",background:"#c4302b",color:"#fff",borderRadius:8,fontSize:12,fontWeight:700,textDecoration:"none",fontFamily:"'Source Sans 3',sans-serif"}}>▶ Tonton di YouTube</a>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function ReadingModule({ supabase, currentUser }){
   console.log("🔵 ReadingModule mounted");
   console.log("supabase:", supabase);
@@ -1146,6 +1261,7 @@ function ReadingModule({ supabase, currentUser }){
   const [featuredIds, setFeaturedIds] = useState(new Set(["A1","A2","A3"])); // Featured top articles
   const [levelFilter, setLevelFilter] = useState("all"); // Level filter 1/2/3/4/all
   const [showLoginGate, setShowLoginGate] = useState(false);
+  const [showPodcast, setShowPodcast] = useState(false); // "Podcast Buku" page
   const [completedIds, setCompletedIds] = useState(new Set()); // article ids whose quiz is already answered
 
   // Load which articles this user already finished the quiz for, so they can be hidden from the list
@@ -1170,25 +1286,71 @@ function ReadingModule({ supabase, currentUser }){
   const handleArticleClick = (a) => {
     if (isArticleFree(a)) { setSelArt(a); setReadingAns({}); setQuizSubmitted(false); } else { setShowLoginGate(true); }
   };
-  // Fetch from Google Sheets on mount — 3 sheets: articles, vocab, quiz_article
+  // Fetch from Google Sheets on mount.
+  // Strategy: show cached copy instantly (no blank space), then refresh in background.
+  // Articles fetch first so the list appears ASAP; vocab+quiz fetch in parallel.
   useEffect(()=>{
     if(!GOOGLE_API_KEY||!SHEETS_ID){setSheetsStatus("idle");return;}
-    setSheetsStatus("loading");
+    let cancelled=false;
+
+    const saveCache=(articles,vocab,quiz)=>{
+      try{
+        const prev=JSON.parse(localStorage.getItem(SHEETS_CACHE_KEY)||"{}");
+        localStorage.setItem(SHEETS_CACHE_KEY, JSON.stringify({
+          articles: articles??prev.articles??[],
+          vocab: vocab??prev.vocab??[],
+          quiz: quiz??prev.quiz??[]
+        }));
+      }catch(e){console.error("Cache save error:",e);}
+    };
+
+    // 1) Render cached data instantly → zero blank space on repeat visits
+    try{
+      const raw=localStorage.getItem(SHEETS_CACHE_KEY);
+      if(raw){
+        const c=JSON.parse(raw);
+        if(c&&Array.isArray(c.articles)&&c.articles.length){
+          setArticles(c.articles);
+          setArtVocab(c.vocab||[]);
+          setRdQuiz(c.quiz||[]);
+          setSheetsStatus("ok");
+        }
+      }
+    }catch(e){console.error("Cache read error:",e);}
+
+    setSheetsStatus(s=>s==="ok"?"ok":"loading");
+
+    // 2) Articles first — the list appears as soon as this resolves
+    fetchSheet(SHEET_ARTICLES).then(artRows=>{
+      if(cancelled)return;
+      const {articles:a}=parseArticlesSheet(artRows||[]);
+      if(a.length>0){setArticles(a);saveCache(a,null,null);setSheetsStatus("ok");}
+      else{setSheetsStatus(s=>s==="ok"?"ok":"error");}
+      console.log(`✅ Articles loaded: ${a.length}`);
+    }).catch(e=>{
+      console.error("❌ Articles sheet error:",e);
+      if(!cancelled)setSheetsStatus("error");
+    });
+
+    // 3) Vocab + quiz in parallel, then finalize cache
     Promise.all([
-      fetchSheet(SHEET_ARTICLES),
       fetchSheet(SHEET_RD_VOCAB),
       fetchSheet(SHEET_RD_QUIZ)
-    ]).then(([artRows,vocabRows,quizRows])=>{
-      const {articles:a} = parseArticlesSheet(artRows||[]);
-      const v = parseVocabSheetNew(vocabRows||[]);
-      const q = parseQuizSheetNew(quizRows||[]);
-      if(a.length>0){setArticles(a);setArtVocab(v);setRdQuiz(q);}
-      console.log(`✅ Sheets loaded: ${a.length} articles, ${v.length} vocab, ${q.length} quiz`);
+    ]).then(([vocabRows,quizRows])=>{
+      if(cancelled)return;
+      const v=parseVocabSheetNew(vocabRows||[]);
+      const q=parseQuizSheetNew(quizRows||[]);
+      setArtVocab(v);
+      setRdQuiz(q);
+      saveCache(null,v,q);
       setSheetsStatus("ok");
+      console.log(`✅ Vocab/quiz loaded: ${v.length}/${q.length}`);
     }).catch(e=>{
-      console.error("❌ Sheets error:", e);
-      setSheetsStatus("error");
+      console.error("❌ Vocab/quiz sheet error:",e);
+      if(!cancelled)setSheetsStatus("error");
     });
+
+    return()=>{cancelled=true;};
   },[]);
 
   // Admin: upload Excel for articles
@@ -1300,6 +1462,9 @@ function ReadingModule({ supabase, currentUser }){
       console.error("Error saving reading progress:", err);
     }
   };
+  // ── PODCAST BUKU ──
+  if(showPodcast)return(<PodcastBukuPage dark={dk} onBack={()=>setShowPodcast(false)}/>);
+
   // ── ADD WIZARD ──
   if(showAdd)return(
     <div style={{minHeight:"100vh",background:"#faf7f2",fontFamily:"'Source Sans 3',sans-serif"}}>
@@ -1516,7 +1681,8 @@ function ReadingModule({ supabase, currentUser }){
 
       {/* ARTICLE LIST */}
       <div style={{maxWidth:1100,margin:"0 auto",padding:"20px 24px 60px"}}>
-        {filt.length===0&&<div style={{textAlign:"center",padding:"60px 20px",color:txtM}}><div style={{fontSize:40,marginBottom:12}}>📭</div><div style={{fontSize:16,fontWeight:600,color:txtS}}>Tidak ada artikel di kategori ini</div></div>}
+        {sheetsStatus==="loading"&&filt.length===0&&<ArticleSkeleton dark={dk}/>}
+        {filt.length===0&&sheetsStatus!=="loading"&&<div style={{textAlign:"center",padding:"60px 20px",color:txtM}}><div style={{fontSize:40,marginBottom:12}}>📭</div><div style={{fontSize:16,fontWeight:600,color:txtS}}>Tidak ada artikel di kategori ini</div></div>}
         {filt.map((a,i)=>{
           const vc=gv(a.id).length,qc=gq(a.id).length;
           if(i===0) return(
@@ -1556,6 +1722,17 @@ function ReadingModule({ supabase, currentUser }){
             </div>
           );
         })}
+      </div>
+      {/* PODCAST BUKU — REKOMENDASI SLIDER */}
+      <div style={{maxWidth:1100,margin:"0 auto",padding:"0 24px 20px"}}>
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:12,marginBottom:14}}>
+          <div>
+            <div style={{fontSize:11,color:txtM,letterSpacing:"0.14em",textTransform:"uppercase"}}>Rekomendasi</div>
+            <h3 style={{fontFamily:"'Playfair Display',serif",fontSize:24,color:txtP,marginTop:2}}>🎧 Podcast Buku</h3>
+          </div>
+          <button onClick={()=>setShowPodcast(true)} style={{padding:"8px 16px",background:"none",border:"1.5px solid "+(dk?"#444":"#d8d3c8"),borderRadius:8,fontSize:12,fontWeight:600,color:dk?"rgba(255,255,255,0.7)":"#555",cursor:"pointer",fontFamily:"'Source Sans 3',sans-serif",whiteSpace:"nowrap"}}>Lebih banyak →</button>
+        </div>
+        <PodcastSlider dark={dk} onSeeMore={()=>setShowPodcast(true)}/>
       </div>
      {/* LOGIN GATE MODAL */}
       {showLoginGate&&<div onClick={()=>setShowLoginGate(false)} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.6)",backdropFilter:"blur(4px)",zIndex:9000,display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
@@ -1617,6 +1794,7 @@ export default function App(){
       @keyframes ttIn{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:translateY(0)}}
       @keyframes fadeUp{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
       @keyframes fadeIn{from{opacity:0}to{opacity:1}}
+      @keyframes skPulse{0%,100%{opacity:1}50%{opacity:.4}}
       *{box-sizing:border-box;margin:0;padding:0}
       ::-webkit-scrollbar{width:5px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:#ccc;border-radius:3px}
     `;

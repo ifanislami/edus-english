@@ -1260,7 +1260,6 @@ function ReadingModule({ supabase, currentUser }){
   const [langMode, setLangMode] = useState("en"); // "en"|"id" body language toggle
   const [featuredIds, setFeaturedIds] = useState(new Set(["A1","A2","A3"])); // Featured top articles
   const [levelFilter, setLevelFilter] = useState("all"); // Level filter 1/2/3/4/all
-  const [showLoginGate, setShowLoginGate] = useState(false);
   const [showPodcast, setShowPodcast] = useState(false); // "Podcast Buku" page
   const [completedIds, setCompletedIds] = useState(new Set()); // article ids whose quiz is already answered
 
@@ -1274,17 +1273,8 @@ function ReadingModule({ supabase, currentUser }){
       });
   }, [supabase, currentUser]);
 
-  // Free access: non-logged-in users get first 2 articles of Level 1 + first 2 of Level 2
-  const freeArticleIds = useMemo(() => {
-    const lvl1 = articles.filter(a => a.level === "1").sort((a, b) => (b.date ? new Date(b.date) : new Date(0)) - (a.date ? new Date(a.date) : new Date(0))).slice(0, 2).map(a => a.id);
-    const lvl2 = articles.filter(a => a.level === "2").sort((a, b) => (b.date ? new Date(b.date) : new Date(0)) - (a.date ? new Date(a.date) : new Date(0))).slice(0, 2).map(a => a.id);
-    return new Set([...lvl1, ...lvl2]);
-  }, [articles]);
-
-  const isArticleFree = (a) => currentUser || freeArticleIds.has(a.id);
-
   const handleArticleClick = (a) => {
-    if (isArticleFree(a)) { setSelArt(a); setReadingAns({}); setQuizSubmitted(false); } else { setShowLoginGate(true); }
+    setSelArt(a); setReadingAns({}); setQuizSubmitted(false);
   };
   // Fetch from Google Sheets on mount.
   // Strategy: show cached copy instantly (no blank space), then refresh in background.
@@ -1683,9 +1673,9 @@ function ReadingModule({ supabase, currentUser }){
       <div style={{maxWidth:1100,margin:"0 auto",padding:"20px 24px 60px"}}>
         {sheetsStatus==="loading"&&filt.length===0&&<ArticleSkeleton dark={dk}/>}
         {filt.length===0&&sheetsStatus!=="loading"&&<div style={{textAlign:"center",padding:"60px 20px",color:txtM}}><div style={{fontSize:40,marginBottom:12}}>📭</div><div style={{fontSize:16,fontWeight:600,color:txtS}}>Tidak ada artikel di kategori ini</div></div>}
-        {filt.map((a,i)=>{
-          const vc=gv(a.id).length,qc=gq(a.id).length;
-          if(i===0) return(
+        {filt.length>0&&(()=>{
+          const a=filt[0],vc=gv(a.id).length,qc=gq(a.id).length;
+          return(
             <div key={a.id} onClick={()=>setSelArt(a)} style={{display:"grid",gridTemplateColumns:"1.1fr 1fr",gap:36,marginBottom:40,paddingBottom:40,borderBottom:"2px solid "+(dk?"#2a2a2a":"#e0dcd5"),cursor:"pointer"}}>
               <div style={{overflow:"hidden",borderRadius:8,aspectRatio:"4/3"}}><img src={a.image} alt="" style={{width:"100%",height:"100%",objectFit:"cover",filter:dk?"grayscale(30%) brightness(0.8)":"grayscale(8%)",transition:"transform .3s"}} onMouseEnter={e=>e.target.style.transform="scale(1.03)"} onMouseLeave={e=>e.target.style.transform="none"}/></div>
               <div style={{display:"flex",flexDirection:"column",justifyContent:"center"}}>
@@ -1703,6 +1693,22 @@ function ReadingModule({ supabase, currentUser }){
               </div>
             </div>
           );
+        })()}
+
+        {/* PODCAST BUKU — di tengah agak atas supaya lebih ter-notice */}
+        <div style={{marginBottom:40,paddingBottom:36,borderBottom:"2px solid "+(dk?"#2a2a2a":"#e0dcd5")}}>
+          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:12,marginBottom:14}}>
+            <div>
+              <div style={{fontSize:11,color:txtM,letterSpacing:"0.14em",textTransform:"uppercase"}}>Rekomendasi</div>
+              <h3 style={{fontFamily:"'Playfair Display',serif",fontSize:24,color:txtP,marginTop:2}}>🎧 Podcast Buku</h3>
+            </div>
+            <button onClick={()=>setShowPodcast(true)} style={{padding:"8px 16px",background:"none",border:"1.5px solid "+(dk?"#444":"#d8d3c8"),borderRadius:8,fontSize:12,fontWeight:600,color:dk?"rgba(255,255,255,0.7)":"#555",cursor:"pointer",fontFamily:"'Source Sans 3',sans-serif",whiteSpace:"nowrap"}}>Lebih banyak →</button>
+          </div>
+          <PodcastSlider dark={dk} onSeeMore={()=>setShowPodcast(true)}/>
+        </div>
+
+        {filt.slice(1).map((a)=>{
+          const vc=gv(a.id).length,qc=gq(a.id).length;
           return(
            <div key={a.id} onClick={()=>handleArticleClick(a)} style={{cursor:"pointer",borderBottom:"1px solid "+(dk?"#2a2a2a":"#eee"),paddingBottom:20,marginBottom:20,display:"flex",gap:18,transition:"opacity .15s"}} onMouseEnter={e=>e.currentTarget.style.opacity="0.8"} onMouseLeave={e=>e.currentTarget.style.opacity="1"}>
               <div style={{flex:1}}>
@@ -1723,57 +1729,6 @@ function ReadingModule({ supabase, currentUser }){
           );
         })}
       </div>
-      {/* PODCAST BUKU — REKOMENDASI SLIDER */}
-      <div style={{maxWidth:1100,margin:"0 auto",padding:"0 24px 20px"}}>
-        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:12,marginBottom:14}}>
-          <div>
-            <div style={{fontSize:11,color:txtM,letterSpacing:"0.14em",textTransform:"uppercase"}}>Rekomendasi</div>
-            <h3 style={{fontFamily:"'Playfair Display',serif",fontSize:24,color:txtP,marginTop:2}}>🎧 Podcast Buku</h3>
-          </div>
-          <button onClick={()=>setShowPodcast(true)} style={{padding:"8px 16px",background:"none",border:"1.5px solid "+(dk?"#444":"#d8d3c8"),borderRadius:8,fontSize:12,fontWeight:600,color:dk?"rgba(255,255,255,0.7)":"#555",cursor:"pointer",fontFamily:"'Source Sans 3',sans-serif",whiteSpace:"nowrap"}}>Lebih banyak →</button>
-        </div>
-        <PodcastSlider dark={dk} onSeeMore={()=>setShowPodcast(true)}/>
-      </div>
-     {/* LOGIN GATE MODAL */}
-      {showLoginGate&&<div onClick={()=>setShowLoginGate(false)} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.6)",backdropFilter:"blur(4px)",zIndex:9000,display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
-        <div onClick={e=>e.stopPropagation()} style={{background:"#fff",borderRadius:20,padding:"40px 32px",maxWidth:420,width:"100%",textAlign:"center",boxShadow:"0 20px 60px rgba(0,0,0,0.3)"}}>
-          <div style={{fontSize:48,marginBottom:16}}>🔒</div>
-          <h3 style={{fontFamily:"'DM Serif Display',serif",fontSize:"1.4rem",color:"#1E2A47",marginBottom:10}}>Login untuk Membaca</h3>
-          <p style={{color:"#6b7280",fontSize:14,lineHeight:1.6,marginBottom:8}}>Artikel ini hanya bisa diakses oleh pengguna yang sudah login.</p>
-          <p style={{color:"#9ca3af",fontSize:12,lineHeight:1.6,marginBottom:24}}>Tanpa login, kamu bisa membaca 2 artikel Level 1 dan 2 artikel Level 2 secara gratis.</p>
-          <button onClick={()=>setShowLoginGate(false)} style={{background:"none",border:"1px solid #d1d5db",color:"#6b7280",padding:"10px 20px",borderRadius:10,fontSize:13,fontWeight:600,cursor:"pointer"}}>Nanti saja</button>
-        </div>
-      </div>}
-      {/* LOGIN GATE MODAL */}
-      {showLoginGate&&<div onClick={()=>setShowLoginGate(false)} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.6)",backdropFilter:"blur(4px)",zIndex:9000,display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
-        <div onClick={e=>e.stopPropagation()} style={{background:"#fff",borderRadius:20,padding:"40px 32px",maxWidth:420,width:"100%",textAlign:"center",boxShadow:"0 20px 60px rgba(0,0,0,0.3)"}}>
-          <div style={{fontSize:48,marginBottom:16}}>🔒</div>
-          <h3 style={{fontFamily:"'DM Serif Display',serif",fontSize:"1.4rem",color:"#1E2A47",marginBottom:10}}>Login untuk Membaca</h3>
-          <p style={{color:"#6b7280",fontSize:14,lineHeight:1.6,marginBottom:8}}>Artikel ini hanya bisa diakses oleh pengguna yang sudah login.</p>
-          <p style={{color:"#9ca3af",fontSize:12,lineHeight:1.6,marginBottom:24}}>Tanpa login, kamu bisa membaca 2 artikel Level 1 dan 2 artikel Level 2 secara gratis.</p>
-          <button onClick={()=>setShowLoginGate(false)} style={{background:"none",border:"1px solid #d1d5db",color:"#6b7280",padding:"10px 20px",borderRadius:10,fontSize:13,fontWeight:600,cursor:"pointer"}}>Nanti saja</button>
-        </div>
-      </div>}
-        {/* LOGIN GATE MODAL */}
-      {showLoginGate&&<div onClick={()=>setShowLoginGate(false)} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.6)",backdropFilter:"blur(4px)",zIndex:9000,display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
-        <div onClick={e=>e.stopPropagation()} style={{background:"#fff",borderRadius:20,padding:"40px 32px",maxWidth:420,width:"100%",textAlign:"center",boxShadow:"0 20px 60px rgba(0,0,0,0.3)"}}>
-          <div style={{fontSize:48,marginBottom:16}}>🔒</div>
-          <h3 style={{fontFamily:"'DM Serif Display',serif",fontSize:"1.4rem",color:"#1E2A47",marginBottom:10}}>Login untuk Membaca</h3>
-          <p style={{color:"#6b7280",fontSize:14,lineHeight:1.6,marginBottom:8}}>Artikel ini hanya bisa diakses oleh pengguna yang sudah login.</p>
-          <p style={{color:"#9ca3af",fontSize:12,lineHeight:1.6,marginBottom:24}}>Tanpa login, kamu bisa membaca 2 artikel Level 1 dan 2 artikel Level 2 secara gratis.</p>
-          <button onClick={()=>setShowLoginGate(false)} style={{background:"none",border:"1px solid #d1d5db",color:"#6b7280",padding:"10px 20px",borderRadius:10,fontSize:13,fontWeight:600,cursor:"pointer"}}>Nanti saja</button>
-        </div>
-      </div>}
-      {/* LOGIN GATE MODAL */}
-      {showLoginGate&&<div onClick={()=>setShowLoginGate(false)} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.6)",backdropFilter:"blur(4px)",zIndex:9000,display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
-        <div onClick={e=>e.stopPropagation()} style={{background:"#fff",borderRadius:20,padding:"40px 32px",maxWidth:420,width:"100%",textAlign:"center",boxShadow:"0 20px 60px rgba(0,0,0,0.3)"}}>
-          <div style={{fontSize:48,marginBottom:16}}>🔒</div>
-          <h3 style={{fontFamily:"'DM Serif Display',serif",fontSize:"1.4rem",color:"#1E2A47",marginBottom:10}}>Login untuk Membaca</h3>
-          <p style={{color:"#6b7280",fontSize:14,lineHeight:1.6,marginBottom:8}}>Artikel ini hanya bisa diakses oleh pengguna yang sudah login.</p>
-          <p style={{color:"#9ca3af",fontSize:12,lineHeight:1.6,marginBottom:24}}>Tanpa login, kamu bisa membaca 2 artikel Level 1 dan 2 artikel Level 2 secara gratis.</p>
-          <button onClick={()=>setShowLoginGate(false)} style={{background:"none",border:"1px solid #d1d5db",color:"#6b7280",padding:"10px 20px",borderRadius:10,fontSize:13,fontWeight:600,cursor:"pointer"}}>Nanti saja</button>
-        </div>
-      </div>}
       <TranslatePanel dark={dk} apiKey={GOOGLE_API_KEY}/>
     </div>
   );

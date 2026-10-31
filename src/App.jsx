@@ -39,6 +39,38 @@ async function fetchSheet(sheetName) {
   });
 }
 
+// Google Sheet remains the editorial source. Supabase is the published, fast
+// read model used by visitors after the sheet has been synchronized.
+async function fetchReadingFromSupabase(client) {
+  if (!client) return null;
+  const [articlesResult, vocabResult, quizResult] = await Promise.all([
+    client.from("articles").select("*").order("published_on", { ascending: false }),
+    client.from("article_vocabulary").select("*"),
+    client.from("article_quizzes").select("*")
+  ]);
+  if (articlesResult.error || vocabResult.error || quizResult.error) {
+    throw articlesResult.error || vocabResult.error || quizResult.error;
+  }
+  if (!articlesResult.data?.length) return null;
+  return {
+    articles: articlesResult.data.map(a => ({
+      id: a.id, title: a.title, topics: a.topics, level: a.level,
+      word_count: a.word_count, writers: a.writers, source: a.source,
+      date: a.published_on, body: a.body_eng, body_idn: a.body_idn,
+      image: a.image_url || "https://images.unsplash.com/photo-1456513080510-7bf3a84b82f8?w=800"
+    })),
+    vocab: (vocabResult.data || []).map(v => ({
+      aid: v.article_id, vid: v.id, word: v.word, translation: v.translation || "",
+      pos: v.pos || "noun", context: v.context || ""
+    })),
+    quiz: (quizResult.data || []).map(q => ({
+      qid: q.id, aid: q.article_id, question: q.question,
+      options: Array.isArray(q.options) ? q.options : [], answer: q.answer || "",
+      explanation: q.explanation || ""
+    }))
+  };
+}
+
 // Parse articles sheet into app data structures
 // Parse "articles" sheet
 // Columns: A_Code, Word_Count, Title, Topics, Body_eng, body_idn, url_image, level, Writers, Source, Date
@@ -1327,11 +1359,9 @@ function ReadingModule({ supabase, currentUser }){
   const handleArticleClick = (a) => {
     setSelArt(a); setReadingAns({}); setQuizSubmitted(false);
   };
-  // Fetch from Google Sheets on mount.
-  // Strategy: show cached copy instantly (no blank space), then refresh in background.
-  // Articles fetch first so the list appears ASAP; vocab+quiz fetch in parallel.
+  // Read the published Supabase copy first. Google Sheets remains the editor and
+  // only acts as a compatibility fallback while a deployment is being migrated.
   useEffect(()=>{
-    if(!GOOGLE_API_KEY||!SHEETS_ID){setSheetsStatus("idle");return;}
     let cancelled=false;
 
     const saveCache=(articles,vocab,quiz)=>{
@@ -1360,6 +1390,29 @@ function ReadingModule({ supabase, currentUser }){
     }catch(e){console.error("Cache read error:",e);}
 
     setSheetsStatus(s=>s==="ok"?"ok":"loading");
+
+    fetchReadingFromSupabase(supabase).then(data=>{
+      if(cancelled || !data) return;
+      setArticles(data.articles);
+      setArtVocab(data.vocab);
+      setRdQuiz(data.quiz);
+      saveCache(data.articles, data.vocab, data.quiz);
+      setSheetsStatus("ok");
+      console.log(`✅ Supabase reading data loaded: ${data.articles.length}/${data.vocab.length}/${data.quiz.length}`);
+    }).catch(error=>{
+      console.warn("Supabase reading data unavailable; trying Google Sheets fallback.", error);
+    });
+
+    if(supabase){
+      return()=>{cancelled=true;};
+    }
+
+    // The fallback preserves service for older deployments while the scheduled
+    // Sheet → Supabase sync is being configured.
+    if(!GOOGLE_API_KEY||!SHEETS_ID){
+      if(!supabase) setSheetsStatus("idle");
+      return()=>{cancelled=true;};
+    }
 
     // 2) Articles first — the list appears as soon as this resolves
     fetchSheet(SHEET_ARTICLES).then(artRows=>{
@@ -1392,7 +1445,7 @@ function ReadingModule({ supabase, currentUser }){
     });
 
     return()=>{cancelled=true;};
-  },[]);
+  },[supabase]);
 
   // Admin: upload Excel for articles
   const handleArticleUpload=async(file)=>{

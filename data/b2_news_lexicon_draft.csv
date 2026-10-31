@@ -1,0 +1,401 @@
+expression,translation,unit_type,domain
+aftermath,dampak setelah peristiwa buruk,single_word,general_news
+allegation,tuduhan yang belum terbukti,single_word,general_news
+amid,di tengah situasi,single_word,general_news
+backlash,reaksi penolakan yang keras,single_word,general_news
+breakthrough,terobosan penting,single_word,general_news
+casualty,korban luka atau meninggal,single_word,general_news
+crackdown,penindakan keras,single_word,general_news
+deadlock,jalan buntu dalam perundingan,single_word,general_news
+downturn,kemerosotan kegiatan,single_word,general_news
+disruption,gangguan besar,single_word,general_news
+dispute,perselisihan,single_word,general_news
+fraud,penipuan,single_word,general_news
+inquiry,penyelidikan resmi,single_word,general_news
+outbreak,wabah yang mulai menyebar,single_word,general_news
+probe,penyelidikan mendalam,single_word,general_news
+rebound,pemulihan setelah penurunan,single_word,general_news
+setback,kemunduran atau hambatan,single_word,general_news
+shortage,kekurangan pasokan,single_word,general_news
+stalemate,kebuntuan karena kedua pihak seimbang,single_word,general_news
+turmoil,kekacauan besar,single_word,general_news
+unrest,kerusuhan atau ketidaktenangan,single_word,general_news
+verdict,putusan pengadilan,single_word,general_news
+whistleblower,pelapor pelanggaran,single_word,general_news
+whereabouts,lokasi keberadaan seseorang,single_word,general_news
+witness,saksi,single_word,general_news
+accountability,kewajiban mempertanggungjawabkan tindakan,single_word,governance
+ballot,surat atau proses pemungutan suara,single_word,governance
+bipartisan,didukung dua kelompok politik,single_word,governance
+bribery,penyuapan,single_word,governance
+cabinet,kabinet pemerintahan,single_word,governance
+censorship,penyensoran informasi,single_word,governance
+constituency,daerah atau kelompok pemilih,single_word,governance
+corruption,korupsi,single_word,governance
+defendant,terdakwa,single_word,law
+detention,penahanan,single_word,law
+judiciary,sistem peradilan,single_word,law
+impeachment,pemakzulan pejabat,single_word,governance
+incumbent,pejabat yang sedang menjabat,single_word,governance
+jurisdiction,wilayah kewenangan hukum,single_word,law
+lawsuit,gugatan hukum,single_word,law
+ordinance,peraturan resmi pemerintah,single_word,governance
+legislator,anggota pembuat undang-undang,single_word,governance
+misconduct,pelanggaran perilaku,single_word,law
+opposition,pihak penentang pemerintah,single_word,governance
+plaintiff,pihak penggugat,single_word,law
+prosecution,proses penuntutan hukum,single_word,law
+referendum,pemungutan suara langsung,single_word,governance
+regulator,badan pengawas,single_word,governance
+sanction,sanksi resmi,single_word,governance
+testimony,kesaksian resmi,single_word,law
+affordability,keterjangkauan harga,single_word,economy
+bankruptcy,kebangkrutan,single_word,economy
+commodity,barang dagangan utama,single_word,economy
+deficit,kekurangan dalam anggaran,single_word,economy
+downsize,mengurangi jumlah tenaga kerja,single_word,economy
+earnings,penghasilan atau laba,single_word,economy
+entrepreneur,pengusaha,single_word,economy
+expenditure,pengeluaran,single_word,economy
+foreclosure,penyitaan aset karena gagal bayar,single_word,economy
+fundraising,penggalangan dana,single_word,economy
+inequality,ketimpangan,single_word,economy
+inflation,kenaikan harga secara umum,single_word,economy
+livelihood,sumber penghidupan,single_word,economy
+merger,penggabungan perusahaan,single_word,economy
+mortgage,pinjaman untuk membeli properti,single_word,economy
+recession,resesi ekonomi,single_word,economy
+workforce,seluruh tenaga kerja,single_word,economy
+subsidy,bantuan dana pemerintah,single_word,economy
+tariff,bea atas barang perdagangan,single_word,economy
+turnover,omzet atau pergantian tenaga kerja,single_word,economy
+biodiversity,keanekaragaman hayati,single_word,environment
+contamination,pencemaran,single_word,environment
+deforestation,penggundulan hutan,single_word,environment
+degradation,penurunan kualitas,single_word,environment
+depletion,berkurangnya sumber daya,single_word,environment
+relocation,pemindahan ke tempat lain,single_word,environment
+drought,kekeringan,single_word,environment
+ecosystem,kesatuan makhluk hidup dan lingkungannya,single_word,environment
+emissions,gas atau zat yang dilepaskan,single_word,environment
+extinction,kepunahan,single_word,environment
+habitat,tempat hidup alami,single_word,environment
+landfill,tempat pembuangan akhir,single_word,environment
+pollutant,zat pencemar,single_word,environment
+resilience,kemampuan pulih dari gangguan,single_word,environment
+scarcity,kelangkaan,single_word,environment
+sustainability,keberlanjutan,single_word,environment
+vulnerability,kerentanan,single_word,environment
+wildfire,kebakaran liar,single_word,environment
+renewable,dapat diperbarui,single_word,environment
+watershed,daerah aliran air,single_word,environment
+algorithm,urutan aturan pemecahan masalah,single_word,science_technology
+cyberattack,serangan terhadap sistem digital,single_word,science_technology
+encryption,pengamanan data dengan penyandian,single_word,science_technology
+malware,perangkat lunak berbahaya,single_word,science_technology
+misinformation,informasi keliru,single_word,media_technology
+privacy,hak atas kerahasiaan pribadi,single_word,media_technology
+surveillance,pengawasan terus-menerus,single_word,media_technology
+prototype,model awal produk,single_word,science_technology
+breakthrough study,penelitian dengan temuan terobosan,collocation,science_technology
+peer review,penilaian penelitian oleh ahli sejawat,collocation,science_technology
+raise concerns,menimbulkan kekhawatiran,collocation,general_news
+spark debate,memicu perdebatan,collocation,general_news
+draw criticism,mengundang kritik,collocation,general_news
+face scrutiny,menghadapi pemeriksaan ketat,collocation,general_news
+prompt an investigation,mendorong dilakukannya penyelidikan,collocation,general_news
+issue a warning,mengeluarkan peringatan,collocation,general_news
+release a statement,mengeluarkan pernyataan,collocation,general_news
+deny an allegation,membantah tuduhan,collocation,general_news
+admit wrongdoing,mengakui perbuatan salah,collocation,general_news
+reach an agreement,mencapai kesepakatan,collocation,general_news
+reach a compromise,mencapai kompromi,collocation,general_news
+settle a dispute,menyelesaikan perselisihan,collocation,general_news
+meet a deadline,memenuhi tenggat waktu,collocation,general_news
+miss a deadline,melewati tenggat waktu,collocation,general_news
+pose a threat,menimbulkan ancaman,collocation,general_news
+pose a challenge,menimbulkan tantangan,collocation,general_news
+ease tensions,meredakan ketegangan,collocation,general_news
+fuel speculation,memperkuat spekulasi,collocation,general_news
+gain momentum,mendapatkan dorongan semakin kuat,collocation,general_news
+lose momentum,kehilangan daya dorong,collocation,general_news
+remain unclear,tetap belum jelas,collocation,general_news
+remain in custody,tetap berada dalam tahanan,collocation,law
+launch an inquiry,memulai penyelidikan resmi,collocation,law
+conduct an inquiry,melakukan penyelidikan resmi,collocation,law
+gather evidence,mengumpulkan bukti,collocation,law
+file a lawsuit,mengajukan gugatan,collocation,law
+face charges,menghadapi dakwaan,collocation,law
+press charges,mengajukan tuntutan pidana,collocation,law
+plead guilty,mengaku bersalah,collocation,law
+plead not guilty,mengaku tidak bersalah,collocation,law
+deliver a verdict,menyampaikan putusan,collocation,law
+serve a sentence,menjalani hukuman,collocation,law
+grant bail,mengabulkan jaminan,collocation,law
+violate a regulation,melanggar peraturan,collocation,law
+tighten regulations,memperketat peraturan,collocation,governance
+enforce the law,menegakkan hukum,collocation,law
+lift a ban,mencabut larangan,collocation,governance
+impose a ban,memberlakukan larangan,collocation,governance
+impose sanctions,memberlakukan sanksi,collocation,governance
+hold office,menjabat dalam pemerintahan,collocation,governance
+seek re-election,mencalonkan diri kembali,collocation,governance
+win a majority,memenangkan suara mayoritas,collocation,governance
+form a coalition,membentuk koalisi,collocation,governance
+cast a ballot,memberikan suara dalam pemilu,collocation,governance
+hold a referendum,mengadakan referendum,collocation,governance
+public accountability,pertanggungjawaban kepada masyarakat,collocation,governance
+policy shift,perubahan arah kebijakan,collocation,governance
+policy reform,pembaruan kebijakan,collocation,governance
+public backlash,reaksi penolakan dari masyarakat,collocation,governance
+mounting pressure,tekanan yang semakin besar,collocation,general_news
+growing concern,kekhawatiran yang meningkat,collocation,general_news
+widespread criticism,kritik yang meluas,collocation,general_news
+mixed reaction,reaksi yang beragam,collocation,general_news
+key finding,temuan utama,collocation,general_news
+reliable source,sumber yang dapat dipercaya,collocation,media
+anonymous source,sumber tanpa nama,collocation,media
+eyewitness account,kesaksian saksi mata,collocation,media
+media coverage,pemberitaan media,collocation,media
+breaking news,berita yang baru terjadi,collocation,media
+false claim,klaim keliru,collocation,media
+verified information,informasi yang telah diverifikasi,collocation,media
+spread misinformation,menyebarkan informasi keliru,collocation,media
+data breach,kebocoran data,collocation,technology
+security flaw,kelemahan keamanan,collocation,technology
+privacy concern,kekhawatiran privasi,collocation,technology
+digital divide,kesenjangan akses digital,collocation,technology
+rapid advancement,kemajuan yang pesat,collocation,science_technology
+scientific evidence,bukti ilmiah,collocation,science_technology
+preliminary finding,temuan awal,collocation,science_technology
+clinical trial,uji klinis,collocation,health_science
+underlying cause,penyebab yang mendasari,collocation,science_health
+potential risk,risiko yang mungkin terjadi,collocation,general_news
+long-term impact,dampak jangka panjang,collocation,general_news
+far-reaching consequences,konsekuensi yang berdampak luas,collocation,general_news
+unintended consequence,akibat yang tidak direncanakan,collocation,general_news
+pressing issue,persoalan yang mendesak,collocation,general_news
+viable solution,solusi yang layak dijalankan,collocation,general_news
+temporary measure,langkah sementara,collocation,general_news
+preventive measure,langkah pencegahan,collocation,general_news
+emergency response,tanggapan keadaan darurat,collocation,disaster
+evacuation order,perintah evakuasi,collocation,disaster
+rescue operation,operasi penyelamatan,collocation,disaster
+death toll,jumlah korban meninggal,collocation,disaster
+severe damage,kerusakan parah,collocation,disaster
+humanitarian aid,bantuan kemanusiaan,collocation,humanitarian
+displaced residents,warga yang mengungsi,collocation,humanitarian
+vulnerable community,komunitas yang rentan,collocation,society
+social inequality,ketimpangan sosial,collocation,society
+public awareness,kesadaran masyarakat,collocation,society
+community engagement,keterlibatan masyarakat,collocation,society
+mental well-being,kesejahteraan mental,collocation,health
+healthcare access,akses terhadap layanan kesehatan,collocation,health
+disease outbreak,wabah penyakit,collocation,health
+treatment option,pilihan pengobatan,collocation,health
+affordable housing,perumahan yang terjangkau,collocation,society
+living conditions,kondisi kehidupan,collocation,society
+labor shortage,kekurangan tenaga kerja,collocation,economy
+consumer spending,pengeluaran konsumen,collocation,economy
+economic downturn,kemerosotan ekonomi,collocation,economy
+economic recovery,pemulihan ekonomi,collocation,economy
+market uncertainty,ketidakpastian pasar,collocation,economy
+business confidence,kepercayaan pelaku usaha,collocation,economy
+household income,pendapatan rumah tangga,collocation,economy
+cost-of-living crisis,krisis biaya hidup,collocation,economy
+supply chain,rantai pasok,collocation,economy
+renewable energy,energi terbarukan,collocation,environment
+fossil fuel,bahan bakar fosil,collocation,environment
+carbon footprint,jejak karbon,collocation,environment
+greenhouse gas,gas rumah kaca,collocation,environment
+extreme weather,cuaca ekstrem,collocation,environment
+rising sea level,kenaikan permukaan laut,collocation,environment
+habitat loss,hilangnya habitat,collocation,environment
+endangered species,spesies terancam punah,collocation,environment
+conservation effort,upaya pelestarian,collocation,environment
+waste management,pengelolaan limbah,collocation,environment
+water scarcity,kelangkaan air,collocation,environment
+air quality,kualitas udara,collocation,environment
+cut emissions,mengurangi emisi,collocation,environment
+curb pollution,membatasi pencemaran,collocation,environment
+restore a habitat,memulihkan habitat,collocation,environment
+carry out,melaksanakan sesuatu,multiword_verb,general
+carry out an investigation,melaksanakan penyelidikan,multiword_verb,law
+point out,menunjukkan atau menegaskan,multiword_verb,general
+set out,menjelaskan atau memulai perjalanan,multiword_verb,general
+lay out,menjelaskan secara teratur,multiword_verb,general
+rule out,menyatakan tidak mungkin,multiword_verb,general
+back down,menghentikan tuntutan setelah mendapat tekanan,multiword_verb,general
+step down,mengundurkan diri dari jabatan,multiword_verb,governance
+stand down,melepaskan tugas atau pencalonan,multiword_verb,governance
+call for,menuntut atau menyerukan,multiword_verb,general_news
+push for,mendorong agar sesuatu disetujui,multiword_verb,general_news
+press for,mendesak agar sesuatu dilakukan,multiword_verb,general_news
+account for,menjelaskan atau membentuk suatu proporsi,multiword_verb,general
+amount to,setara dengan atau berjumlah,multiword_verb,general
+lead to,mengakibatkan,multiword_verb,general
+result in,mengakibatkan,multiword_verb,general
+stem from,berasal dari,multiword_verb,general
+bring about,menyebabkan perubahan,multiword_verb,general
+give rise to,menimbulkan,multiword_verb,general
+contribute to,ikut menyebabkan,multiword_verb,general
+cope with,mengatasi situasi sulit,multiword_verb,general
+build on,mengembangkan berdasarkan sesuatu,multiword_verb,general
+draw on,memanfaatkan pengetahuan atau sumber,multiword_verb,general
+look into,menyelidiki,multiword_verb,law
+follow up on,menindaklanjuti,multiword_verb,general
+crack down on,menindak keras,multiword_verb,law
+clamp down on,membatasi dengan tindakan keras,multiword_verb,law
+comply with,mematuhi,multiword_verb,law
+abide by,mematuhi aturan,multiword_verb,law
+opt for,memilih setelah mempertimbangkan,multiword_verb,general
+refrain from,menahan diri untuk tidak melakukan,multiword_verb,general
+resort to,menggunakan sebagai pilihan terakhir,multiword_verb,general
+phase out,menghentikan secara bertahap,multiword_verb,policy
+roll out,memperkenalkan secara luas,multiword_verb,policy
+scale up,meningkatkan skala,multiword_verb,business
+scale back,mengurangi skala,multiword_verb,business
+cut back on,mengurangi penggunaan atau pengeluaran,multiword_verb,general
+make up for,mengganti kekurangan atau kerugian,multiword_verb,general
+offset the impact,mengimbangi dampak,multiword_verb,general
+take over,mengambil alih,multiword_verb,business
+hand over,menyerahkan kendali,multiword_verb,general
+take effect,mulai berlaku,multiword_verb,policy
+come into force,mulai berlaku secara hukum,multiword_verb,law
+come under fire,mendapat kritik keras,multiword_verb,general_news
+come under scrutiny,menghadapi pemeriksaan ketat,multiword_verb,general_news
+come to light,menjadi diketahui publik,multiword_verb,general_news
+come forward,muncul untuk memberi informasi,multiword_verb,general_news
+speak out,menyatakan pendapat secara terbuka,multiword_verb,general_news
+open up about,berbicara terbuka mengenai pengalaman pribadi,multiword_verb,general_news
+break out,mulai terjadi secara tiba-tiba,multiword_verb,disaster
+shut down,menghentikan operasi,multiword_verb,business
+close down,menutup operasi secara permanen,multiword_verb,business
+pick up,mulai meningkat atau membaik,multiword_verb,economy
+bounce back,pulih setelah kemunduran,multiword_verb,economy
+level off,menjadi stabil setelah naik atau turun,multiword_verb,economy
+drive up,mendorong kenaikan,multiword_verb,economy
+bring down,menurunkan tingkat atau harga,multiword_verb,economy
+die out,punah secara bertahap,multiword_verb,environment
+wipe out,menghancurkan sepenuhnya,multiword_verb,environment
+dispose of,membuang dengan cara tertentu,multiword_verb,environment
+as a consequence,sebagai konsekuensinya,discourse_marker,cause_effect
+consequently,oleh karena itu,discourse_marker,cause_effect
+therefore,oleh karena itu,discourse_marker,cause_effect
+for that reason,karena alasan tersebut,discourse_marker,cause_effect
+owing to,disebabkan oleh,discourse_marker,cause_effect
+given that,mengingat bahwa,discourse_marker,cause_effect
+in response to,sebagai tanggapan terhadap,discourse_marker,cause_effect
+in the wake of,setelah peristiwa yang berdampak besar,discourse_marker,time_cause
+in light of,dengan mempertimbangkan,discourse_marker,reasoning
+with regard to,berkenaan dengan,discourse_marker,reference
+in terms of,dalam hal,discourse_marker,reference
+to some extent,sampai batas tertentu,discourse_marker,qualification
+by contrast,sebaliknya jika dibandingkan,discourse_marker,contrast
+in contrast,sebagai perbandingan yang berbeda,discourse_marker,contrast
+on the other hand,di sisi lain,discourse_marker,contrast
+in comparison,sebagai perbandingan,discourse_marker,contrast
+while this is true,meskipun hal ini benar,discourse_marker,concession
+despite this,meskipun demikian,discourse_marker,concession
+even so,meskipun demikian,discourse_marker,concession
+all the same,meskipun begitu,discourse_marker,concession
+regardless of,terlepas dari,discourse_marker,concession
+on the whole,secara keseluruhan,discourse_marker,summary
+broadly speaking,secara umum,discourse_marker,summary
+in particular,secara khusus,discourse_marker,focus
+notably,terutama yang patut diperhatikan,discourse_marker,focus
+that is to say,dengan kata lain,discourse_marker,clarification
+in practice,dalam pelaksanaannya,discourse_marker,qualification
+in theory,secara teori,discourse_marker,qualification
+in principle,pada prinsipnya,discourse_marker,qualification
+in reality,pada kenyataannya,discourse_marker,qualification
+in the short term,dalam jangka pendek,discourse_marker,time
+in the long term,dalam jangka panjang,discourse_marker,time
+to date,sampai saat ini,discourse_marker,time
+at this stage,pada tahap ini,discourse_marker,time
+over time,seiring waktu,discourse_marker,time
+in turn,pada gilirannya,discourse_marker,sequence
+more importantly,yang lebih penting,discourse_marker,emphasis
+above all,terutama,discourse_marker,emphasis
+to a large extent,sebagian besar,discourse_marker,qualification
+on the grounds that,dengan alasan bahwa,discourse_marker,reasoning
+provided that,dengan syarat bahwa,discourse_marker,condition
+unless otherwise stated,kecuali dinyatakan lain,discourse_marker,condition
+in an effort to,dalam upaya untuk,discourse_marker,purpose
+for the purpose of,untuk tujuan,discourse_marker,purpose
+public health emergency,darurat kesehatan masyarakat,topic_expression,health
+community transmission,penularan dalam masyarakat,topic_expression,health
+preventive care,perawatan pencegahan,topic_expression,health
+health disparity,kesenjangan kesehatan,topic_expression,health
+medical breakthrough,terobosan medis,topic_expression,health
+drug resistance,kekebalan terhadap obat,topic_expression,health
+life expectancy,harapan hidup,topic_expression,health
+food insecurity,ketidakpastian akses pangan,topic_expression,society
+social mobility,mobilitas sosial,topic_expression,society
+income gap,kesenjangan pendapatan,topic_expression,society
+gender gap,kesenjangan gender,topic_expression,society
+equal opportunity,kesempatan yang setara,topic_expression,society
+public perception,pandangan masyarakat,topic_expression,society
+cultural heritage,warisan budaya,topic_expression,culture
+historical significance,makna penting secara sejarah,topic_expression,culture
+indigenous community,masyarakat adat,topic_expression,culture
+local custom,adat setempat,topic_expression,culture
+artistic expression,ekspresi artistik,topic_expression,culture
+box-office success,kesuksesan penjualan tiket film,topic_expression,culture
+critical acclaim,pujian dari kritikus,topic_expression,culture
+defending champion,juara bertahan,topic_expression,sport
+qualifying round,babak kualifikasi,topic_expression,sport
+record-breaking performance,penampilan yang memecahkan rekor,topic_expression,sport
+narrow victory,kemenangan tipis,topic_expression,sport
+home advantage,keuntungan bermain di kandang,topic_expression,sport
+injury setback,kemunduran akibat cedera,topic_expression,sport
+match-fixing,pengaturan hasil pertandingan,topic_expression,sport
+grassroots program,program yang tumbuh dari tingkat masyarakat,topic_expression,society
+policy implementation,penerapan kebijakan,topic_expression,governance
+public consultation,konsultasi dengan masyarakat,topic_expression,governance
+regulatory framework,kerangka peraturan,topic_expression,governance
+conflict of interest,benturan kepentingan,topic_expression,governance
+abuse of power,penyalahgunaan kekuasaan,topic_expression,governance
+freedom of expression,kebebasan berekspresi,topic_expression,governance
+human rights violation,pelanggaran hak asasi manusia,topic_expression,governance
+peacekeeping mission,misi penjaga perdamaian,topic_expression,international
+diplomatic ties,hubungan diplomatik,topic_expression,international
+border dispute,sengketa perbatasan,topic_expression,international
+trade agreement,perjanjian perdagangan,topic_expression,international
+economic sanction,sanksi ekonomi,topic_expression,international
+ceasefire agreement,kesepakatan gencatan senjata,topic_expression,international
+refugee crisis,krisis pengungsi,topic_expression,humanitarian
+aid agency,lembaga bantuan,topic_expression,humanitarian
+relief effort,upaya pemberian bantuan,topic_expression,humanitarian
+flash flood,banjir bandang,topic_expression,disaster
+seismic activity,aktivitas kegempaan,topic_expression,disaster
+early warning system,sistem peringatan dini,topic_expression,disaster
+disaster preparedness,kesiapsiagaan bencana,topic_expression,disaster
+recovery effort,upaya pemulihan,topic_expression,disaster
+climate resilience,ketahanan menghadapi perubahan iklim,topic_expression,environment
+climate adaptation,penyesuaian terhadap perubahan iklim,topic_expression,environment
+ecological damage,kerusakan ekologis,topic_expression,environment
+marine ecosystem,ekosistem laut,topic_expression,environment
+protected area,kawasan yang dilindungi,topic_expression,environment
+illegal logging,pembalakan liar,topic_expression,environment
+wildlife trafficking,perdagangan ilegal satwa liar,topic_expression,environment
+clean energy transition,peralihan menuju energi bersih,topic_expression,environment
+sustainable development,pembangunan berkelanjutan,topic_expression,environment
+circular economy,ekonomi sirkular,topic_expression,environment
+single-use plastic,plastik sekali pakai,topic_expression,environment
+carbon neutral,netral karbon,topic_expression,environment
+technological innovation,inovasi teknologi,topic_expression,technology
+artificial intelligence,kecerdasan buatan,topic_expression,technology
+machine learning,pembelajaran mesin,topic_expression,technology
+facial recognition,pengenalan wajah,topic_expression,technology
+data protection,perlindungan data,topic_expression,technology
+online harassment,pelecehan daring,topic_expression,technology
+digital literacy,kecakapan menggunakan teknologi digital,topic_expression,technology
+information security,keamanan informasi,topic_expression,technology
+automated system,sistem otomatis,topic_expression,technology
+research funding,pendanaan penelitian,topic_expression,science
+scientific consensus,kesepakatan umum para ilmuwan,topic_expression,science
+research ethics,etika penelitian,topic_expression,science
+genetic disorder,kelainan genetik,topic_expression,science
+space exploration,penjelajahan luar angkasa,topic_expression,science
+renewable resource,sumber daya terbarukan,topic_expression,science

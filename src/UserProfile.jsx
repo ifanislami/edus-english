@@ -1,183 +1,115 @@
-// UserProfile.jsx - User profile dengan history vocab quiz dan reading
-// Copy file ini ke src/UserProfile.jsx
+import { useEffect, useMemo, useState } from "react";
 
-import { useState, useEffect } from "react";
+const C = { navy: "#1a2744", sage: "#5d8a6e", gold: "#c99a36", red: "#c1554d", ink: "#2b3445" };
+const pct = (value) => `${Number.isFinite(value) ? value.toFixed(1) : "0.0"}%`;
+const scorePct = (row) => row.total > 0 ? row.score / row.total * 100 : 0;
+const quizPct = (row) => row.quiz_total > 0 ? row.quiz_score / row.quiz_total * 100 : 0;
 
-const C = {
-  navyDark: "#1a2744",
-  sage: "#5d8a6e",
-};
+function Card({ label, value, note }) {
+  return <div style={{ background: "#fff", padding: 20, borderRadius: 13, border: "1px solid #e8e9ed", boxShadow: "0 3px 12px rgba(25,39,68,.04)" }}>
+    <div style={{ fontSize: 30, fontWeight: 800, color: C.sage, lineHeight: 1.1 }}>{value}</div>
+    <div style={{ fontSize: 13, fontWeight: 700, color: C.ink, marginTop: 7 }}>{label}</div>
+    {note && <div style={{ fontSize: 11, color: "#9298a3", marginTop: 4 }}>{note}</div>}
+  </div>;
+}
+
+function VocabChart({ common, awl }) {
+  const width = 720, height = 250, left = 45, right = 18, top = 20, bottom = 35;
+  const plotW = width - left - right, plotH = height - top - bottom;
+  const points = (rows) => rows.map((row, index) => ({
+    x: left + (rows.length === 1 ? plotW / 2 : index * plotW / (rows.length - 1)),
+    y: top + (100 - scorePct(row)) / 100 * plotH,
+    value: scorePct(row),
+  }));
+  const series = [{ key: "common", label: "Common", color: C.sage, rows: common }, { key: "awl", label: "AWL", color: C.gold, rows: awl }];
+  const hasData = common.length || awl.length;
+
+  return <section style={{ background: "#fff", borderRadius: 14, padding: "22px 22px 15px", border: "1px solid #e8e9ed" }}>
+    <div style={{ display: "flex", justifyContent: "space-between", gap: 15, alignItems: "flex-start", flexWrap: "wrap" }}>
+      <div><h3 style={{ color: C.navy, fontSize: 18, margin: 0 }}>Perkembangan Latihan Vocab</h3><p style={{ color: "#89909c", fontSize: 12, margin: "5px 0 0" }}>Maksimal 10 latihan terakhir per kategori</p></div>
+      <div style={{ display: "flex", gap: 15 }}>{series.map(s => <span key={s.key} style={{ color: "#697180", fontSize: 12 }}><i style={{ display: "inline-block", width: 9, height: 9, borderRadius: 9, background: s.color, marginRight: 6 }} />{s.label}</span>)}</div>
+    </div>
+    {!hasData ? <div style={{ minHeight: 210, display: "grid", placeItems: "center", color: "#9aa0aa", fontSize: 13 }}>Selesaikan latihan vocab untuk mulai melihat grafik.</div> :
+      <div style={{ overflowX: "auto", marginTop: 12 }}><svg viewBox={`0 0 ${width} ${height}`} style={{ minWidth: 570, width: "100%", display: "block" }} role="img" aria-label="Grafik 10 latihan vocab terakhir">
+        {[0,25,50,75,100].map(v => { const y = top + (100-v)/100*plotH; return <g key={v}><line x1={left} y1={y} x2={width-right} y2={y} stroke="#eceef1" /><text x={left-9} y={y+4} textAnchor="end" fontSize="10" fill="#9298a3">{v}%</text></g>; })}
+        {series.map(s => { const ps = points(s.rows); return <g key={s.key}>{ps.length > 1 && <polyline fill="none" stroke={s.color} strokeWidth="3" strokeLinejoin="round" strokeLinecap="round" points={ps.map(p => `${p.x},${p.y}`).join(" ")} />}{ps.map((p,i) => <g key={i}><circle cx={p.x} cy={p.y} r="5" fill="#fff" stroke={s.color} strokeWidth="3"><title>{`${s.label} latihan ${i+1}: ${p.value.toFixed(0)}%`}</title></circle><text x={p.x} y={height-10} textAnchor="middle" fontSize="9" fill="#a0a5ae">{i+1}</text></g>)}</g>; })}
+      </svg></div>}
+  </section>;
+}
+
+function LevelDistribution({ rows, scoreMode = false }) {
+  const validRows = scoreMode ? rows.filter(r => r.quiz_total > 0) : rows;
+  return <div style={{ display: "grid", gap: 13 }}>
+    {["1","2","3"].map((level, index) => {
+      const items = validRows.filter(r => String(r.article_level) === level);
+      const share = validRows.length ? items.length / validRows.length * 100 : 0;
+      const average = items.length ? items.reduce((sum, r) => sum + quizPct(r), 0) / items.length : 0;
+      const color = [C.sage, C.gold, C.red][index];
+      return <div key={level}>
+        <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, marginBottom: 6 }}><span style={{ fontWeight: 700, color: C.ink }}>Level {level}</span><span style={{ color: "#747b88" }}>{scoreMode ? `${pct(average)} rata-rata · ${pct(share)} quiz` : `${pct(share)} · ${items.length} artikel`}</span></div>
+        <div style={{ height: 8, background: "#edf0f2", borderRadius: 8, overflow: "hidden" }}><div style={{ width: `${scoreMode ? average : share}%`, height: "100%", background: color, borderRadius: 8 }} /></div>
+      </div>;
+    })}
+  </div>;
+}
 
 export function UserProfile({ user, onLogout, supabase }) {
-  const [vocabHistory, setVocabHistory] = useState([]);
-  const [readingHistory, setReadingHistory] = useState([]);
-  const [activeTab, setActiveTab] = useState("vocab");
+  const [vocab, setVocab] = useState([]);
+  const [reading, setReading] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
   useEffect(() => {
-    fetchHistory();
-  }, []);
-
-  const fetchHistory = async () => {
-    if (!supabase || !user) return;
-    setLoading(true);
-    try {
-      // Fetch vocab scores
-      const { data: vocabData, error: vocabErr } = await supabase
-        .from("vocab_scores")
-        .select("*")
-        .eq("user_id", user.id)
-        .order("completed_at", { ascending: false });
-
-      if (vocabErr) throw vocabErr;
-      setVocabHistory(vocabData || []);
-
-      // Fetch reading progress
-      const { data: readingData, error: readingErr } = await supabase
-        .from("reading_progress")
-        .select("*")
-        .eq("user_id", user.id)
-        .order("completed_at", { ascending: false });
-
-      if (readingErr) throw readingErr;
-      setReadingHistory(readingData || []);
-    } catch (err) {
-      alert("Error loading history: " + err.message);
-    } finally {
+    let active = true;
+    const load = async () => {
+      if (!supabase || !user) return;
+      setLoading(true); setError("");
+      const [vocabResult, readingResult] = await Promise.all([
+        supabase.from("vocab_scores").select("score,total,quiz_type,category,mode,completed_at").eq("user_id", user.id).order("completed_at", { ascending: false }),
+        supabase.from("reading_progress").select("article_id,article_level,vocab_completed,quiz_answered,quiz_score,quiz_total,completed_at").eq("user_id", user.id).order("completed_at", { ascending: false }),
+      ]);
+      if (!active) return;
+      const loadError = vocabResult.error || readingResult.error;
+      if (loadError) setError(loadError.message);
+      else { setVocab(vocabResult.data || []); setReading(readingResult.data || []); }
       setLoading(false);
-    }
-  };
+    };
+    load();
+    return () => { active = false; };
+  }, [supabase, user]);
 
-  const avgScore = vocabHistory.length > 0 ? (vocabHistory.reduce((sum, h) => sum + (h.score / h.total) * 100, 0) / vocabHistory.length).toFixed(1) : 0;
+  const chartData = useMemo(() => ({
+    common: vocab.filter(v => v.quiz_type === "common").slice(0,10).reverse(),
+    awl: vocab.filter(v => v.quiz_type === "awl").slice(0,10).reverse(),
+  }), [vocab]);
+  const vocabAverage = vocab.length ? vocab.reduce((sum,row) => sum + scorePct(row), 0) / vocab.length : 0;
+  const validQuiz = reading.filter(row => row.quiz_total > 0);
+  const quizAverage = validQuiz.length ? validQuiz.reduce((sum,row) => sum + quizPct(row), 0) / validQuiz.length : 0;
+  const displayName = user.user_metadata?.full_name || user.user_metadata?.name || user.email?.split("@")[0] || "Pelajar";
 
-  return (
-    <div style={{ minHeight: "100vh", background: "#f5f5f5" }}>
-      {/* Profile Header */}
-      <div style={{ background: C.navyDark, color: "#fff", padding: "20px 24px" }}>
-        <div style={{ maxWidth: 1200, margin: "0 auto", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <div>
-            <h2 style={{ fontFamily: "'DM Serif Display',serif", fontSize: 20, margin: "0 0 4px" }}>Profile Saya</h2>
-            <p style={{ color: "rgba(255,255,255,0.6)", fontSize: 13, margin: 0 }}>{user.email}</p>
-          </div>
-          <button
-            onClick={onLogout}
-            style={{
-              padding: "8px 16px",
-              background: "rgba(255,255,255,0.2)",
-              border: "none",
-              color: "#fff",
-              borderRadius: 6,
-              cursor: "pointer",
-              fontSize: 13,
-            }}
-          >
-            Logout
-          </button>
-        </div>
-      </div>
+  return <div style={{ minHeight: "100vh", background: "#f5f6f8", color: C.ink }}>
+    <header style={{ background: C.navy, color: "#fff", padding: "25px 24px" }}><div style={{ maxWidth: 1120, margin: "0 auto", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 15 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 13 }}><div style={{ width: 45, height: 45, borderRadius: "50%", background: C.sage, display: "grid", placeItems: "center", fontSize: 20, fontWeight: 800 }}>{displayName.slice(0,1).toUpperCase()}</div><div><h2 style={{ fontFamily: "'DM Serif Display',serif", fontSize: 21, margin: 0 }}>{displayName}</h2><p style={{ color: "rgba(255,255,255,.6)", fontSize: 12, margin: "3px 0 0" }}>{user.email || "Akun sosial"}</p></div></div>
+      <button onClick={onLogout} style={{ padding: "8px 15px", background: "rgba(255,255,255,.12)", border: "1px solid rgba(255,255,255,.24)", color: "#fff", borderRadius: 7, cursor: "pointer" }}>Logout</button>
+    </div></header>
 
-      {/* Main Content */}
-      <div style={{ maxWidth: 1200, margin: "0 auto", padding: "30px 20px" }}>
-        {/* Stats Cards */}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 16, marginBottom: 30 }}>
-          <div style={{ background: "#fff", padding: 20, borderRadius: 12, boxShadow: "0 2px 8px rgba(0,0,0,0.05)" }}>
-            <div style={{ fontSize: 32, fontWeight: 700, color: C.sage, marginBottom: 6 }}>{vocabHistory.length}</div>
-            <div style={{ fontSize: 13, color: "#888" }}>Total Quiz Vocab</div>
-          </div>
-          <div style={{ background: "#fff", padding: 20, borderRadius: 12, boxShadow: "0 2px 8px rgba(0,0,0,0.05)" }}>
-            <div style={{ fontSize: 32, fontWeight: 700, color: C.sage, marginBottom: 6 }}>{avgScore}%</div>
-            <div style={{ fontSize: 13, color: "#888" }}>Rata-rata Score</div>
-          </div>
-          <div style={{ background: "#fff", padding: 20, borderRadius: 12, boxShadow: "0 2px 8px rgba(0,0,0,0.05)" }}>
-            <div style={{ fontSize: 32, fontWeight: 700, color: C.sage, marginBottom: 6 }}>{readingHistory.length}</div>
-            <div style={{ fontSize: 13, color: "#888" }}>Artikel Dibaca</div>
-          </div>
+    <main style={{ maxWidth: 1120, margin: "0 auto", padding: "27px 20px 45px" }}>
+      {error && <div style={{ background: "#fce8e6", color: "#a83c35", padding: 13, borderRadius: 9, marginBottom: 18 }}>Gagal memuat statistik: {error}</div>}
+      {loading ? <div style={{ minHeight: 350, display: "grid", placeItems: "center", color: "#858c98" }}>Memuat statistik...</div> : <>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(190px,1fr))", gap: 14, marginBottom: 20 }}>
+          <Card value={vocab.length} label="Latihan Vocab" note={`${chartData.common.length} Common · ${chartData.awl.length} AWL terbaru`} />
+          <Card value={pct(vocabAverage)} label="Rata-rata Vocab" note="Seluruh latihan tersimpan" />
+          <Card value={reading.length} label="Artikel Dibaca" note="Quiz artikel telah diselesaikan" />
+          <Card value={pct(quizAverage)} label="Rata-rata Quiz" note={`${validQuiz.length} quiz artikel`} />
         </div>
 
-        {/* Tabs */}
-        <div style={{ display: "flex", gap: 0, marginBottom: 20, borderBottom: "2px solid #ddd" }}>
-          {["vocab", "reading"].map((tab) => (
-            <button
-              key={tab}
-              onClick={() => setActiveTab(tab)}
-              style={{
-                padding: "12px 20px",
-                background: "none",
-                border: "none",
-                fontSize: 14,
-                fontWeight: activeTab === tab ? 700 : 400,
-                color: activeTab === tab ? C.navyDark : "#999",
-                borderBottom: activeTab === tab ? `3px solid ${C.sage}` : "none",
-                cursor: "pointer",
-                marginBottom: "-2px",
-              }}
-            >
-              {tab === "vocab" ? "Vocab Quiz History" : "Reading Progress"}
-            </button>
-          ))}
-        </div>
+        <VocabChart common={chartData.common} awl={chartData.awl} />
 
-        {/* History Content */}
-        {loading ? (
-          <p>Loading...</p>
-        ) : activeTab === "vocab" ? (
-          <div style={{ background: "#fff", borderRadius: 12, overflow: "hidden" }}>
-            {vocabHistory.length === 0 ? (
-              <p style={{ padding: 20, color: "#888" }}>Belum ada riwayat vocab quiz.</p>
-            ) : (
-              <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                <thead>
-                  <tr style={{ background: "#f9f9f9", borderBottom: "1px solid #eee" }}>
-                    <th style={{ padding: "12px 16px", textAlign: "left", fontSize: 13, fontWeight: 600 }}>Tanggal</th>
-                    <th style={{ padding: "12px 16px", textAlign: "left", fontSize: 13, fontWeight: 600 }}>Mode</th>
-                    <th style={{ padding: "12px 16px", textAlign: "left", fontSize: 13, fontWeight: 600 }}>Kategori</th>
-                    <th style={{ padding: "12px 16px", textAlign: "left", fontSize: 13, fontWeight: 600 }}>Score</th>
-                    <th style={{ padding: "12px 16px", textAlign: "left", fontSize: 13, fontWeight: 600 }}>Persentase</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {vocabHistory.map((h, i) => {
-                    const percentage = ((h.score / h.total) * 100).toFixed(0);
-                    return (
-                      <tr key={i} style={{ borderBottom: "1px solid #eee" }}>
-                        <td style={{ padding: "12px 16px", fontSize: 13 }}>{new Date(h.completed_at).toLocaleDateString("id-ID", { month: "short", day: "numeric", year: "numeric" })}</td>
-                        <td style={{ padding: "12px 16px", fontSize: 13 }}>{h.mode || "EN→ID"}</td>
-                        <td style={{ padding: "12px 16px", fontSize: 13 }}>{h.category || "All"}</td>
-                        <td style={{ padding: "12px 16px", fontSize: 14, fontWeight: 600, color: C.sage }}>
-                          {h.score}/{h.total}
-                        </td>
-                        <td style={{ padding: "12px 16px", fontSize: 13, color: percentage >= 70 ? "#2d6a4f" : percentage >= 50 ? "#c9a84c" : "#c1554d" }}>
-                          {percentage}%
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            )}
-          </div>
-        ) : (
-          <div style={{ background: "#fff", borderRadius: 12, padding: 20 }}>
-            {readingHistory.length === 0 ? (
-              <p style={{ color: "#888" }}>Belum ada riwayat reading progress.</p>
-            ) : (
-              <div>
-                <p style={{ marginBottom: 20, color: "#666", fontWeight: 600 }}>Total artikel dibaca: {readingHistory.length}</p>
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(250px, 1fr))", gap: 16 }}>
-                  {readingHistory.map((h, i) => (
-                    <div key={i} style={{ padding: 16, border: "1px solid #eee", borderRadius: 8, background: "#f9f9f9" }}>
-                      <div style={{ fontSize: 14, fontWeight: 600, color: C.navyDark, marginBottom: 8 }}>Artikel {h.article_id}</div>
-                      <div style={{ fontSize: 12, color: "#888", marginBottom: 4 }}>Vocab diisi: {h.vocab_completed}</div>
-                      <div style={{ fontSize: 12, color: "#888", marginBottom: 8 }}>Quiz dijawab: {h.quiz_answered}</div>
-                      <div style={{ fontSize: 11, color: "#aaa" }}>{new Date(h.completed_at).toLocaleDateString("id-ID")}</div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-      </div>
-    </div>
-  );
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(300px,1fr))", gap: 18, marginTop: 20 }}>
+          <section style={{ background: "#fff", borderRadius: 14, padding: 22, border: "1px solid #e8e9ed" }}><h3 style={{ fontSize: 17, color: C.navy, margin: "0 0 5px" }}>Sebaran Artikel Dibaca</h3><p style={{ color: "#9197a2", fontSize: 12, margin: "0 0 20px" }}>Persentase bacaan di tiap level</p><LevelDistribution rows={reading} /></section>
+          <section style={{ background: "#fff", borderRadius: 14, padding: 22, border: "1px solid #e8e9ed" }}><h3 style={{ fontSize: 17, color: C.navy, margin: "0 0 5px" }}>Skor Quiz per Level</h3><p style={{ color: "#9197a2", fontSize: 12, margin: "0 0 20px" }}>Rata-rata skor dan sebaran jumlah quiz</p><LevelDistribution rows={reading} scoreMode /></section>
+        </div>
+      </>}
+    </main>
+  </div>;
 }

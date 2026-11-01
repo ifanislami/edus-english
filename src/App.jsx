@@ -282,44 +282,24 @@ function VocabModule({ supabase, currentUser }){
   const activeEn = pkg==="awl" ? awlEn : dbEn;
   const activeId  = pkg==="awl" ? awlId  : dbId;
 
-    const saveVocabScore = async () => {
-  console.log("1. saveVocabScore called");
-  console.log("2. supabase:", supabase);
-  console.log("3. currentUser:", currentUser);
-  
+  const saveVocabScore = async () => {
   if (!supabase || !currentUser) {
-    console.log("4. Missing supabase or currentUser, returning");
     return;
   }
   
   try {
-    console.log("5. About to insert:", {
+    const { error } = await supabase.from("vocab_scores").insert({
       user_id: currentUser.id,
       score: score,
       total: items.length,
+      quiz_type: pkg,
       category: selCats.has("All") ? "All" : Array.from(selCats)[0],
       mode: mode,
       completed_at: new Date().toISOString()
     });
-
-    const { data, error } = await supabase.from("vocab_scores").insert({
-      user_id: currentUser.id,
-      score: score,
-      total: items.length,
-      category: selCats.has("All") ? "All" : Array.from(selCats)[0],
-      mode: mode,
-      completed_at: new Date().toISOString()
-    });
-
-    console.log("6. Insert result - data:", data, "error:", error);
-    
-    if (error) {
-      console.log("7. ERROR:", error);
-    } else {
-      console.log("✅ Score saved!");
-    }
+    if (error) throw error;
   } catch (err) {
-    console.error("8. Catch error:", err);
+    console.error("Error saving vocab score:", err);
   }
 };
 
@@ -1001,18 +981,19 @@ function VocabPracticeTab({vl, dark:dk, C, txtP, txtS, bdgBg, bgCard, bdrC}){
 // ═══════════════════════════════════════
 // READING QUIZ
 // ═══════════════════════════════════════
-function ReadingQuiz({questions,dark:dk,onAnswersChange,onSubmit}){
+function ReadingQuiz({questions,dark:dk,onAnswersChange,onSubmit,onReset}){
   const [ans,setAns]=useState({});
   const [done,setDone]=useState(false);
   // Notify parent when answers change
   useEffect(() => {
     if (onAnswersChange) onAnswersChange(ans);
   }, [ans, onAnswersChange]);
-  // Notify parent once the quiz is actually submitted
-  useEffect(() => {
-    if (done && onSubmit) onSubmit();
-  }, [done, onSubmit]);
   const sc=useMemo(()=>done?questions.reduce((a,q)=>a+(ans[q.qid]===q.answer?1:0),0):0,[done,ans,questions]);
+  const submitQuiz=()=>{
+    const score=questions.reduce((a,q)=>a+(ans[q.qid]===q.answer?1:0),0);
+    setDone(true);
+    if(onSubmit)onSubmit({score,total:questions.length});
+  };
   const qBg=dk?"#1a1a1a":"#f5f1ea";const qBdr=dk?"#2a2a2a":"#e0d9cd";const qTxt=dk?"#f0ece4":"#1a1a1a";
   const oBg=dk?"#242424":"#fff";const oBdr=dk?"#333":"#d8d3c8";const oClr=dk?"#d4cfc8":"#333";
   return(
@@ -1043,8 +1024,8 @@ function ReadingQuiz({questions,dark:dk,onAnswersChange,onSubmit}){
         </div>
       ))}
       <div style={{display:"flex",gap:12,justifyContent:"flex-end"}}>
-        {done&&<button onClick={()=>{setAns({});setDone(false);}} style={{background:"transparent",border:"1.5px solid "+C.gold,color:"#8b7355",borderRadius:8,padding:"10px 24px",cursor:"pointer",fontWeight:600,fontSize:14}}>Try Again</button>}
-        {!done&&<button onClick={()=>setDone(true)} disabled={Object.keys(ans).length<questions.length} style={{background:Object.keys(ans).length<questions.length?"#d0c9bc":"#1a1a1a",color:"#fff",border:"none",borderRadius:8,padding:"12px 32px",cursor:Object.keys(ans).length<questions.length?"not-allowed":"pointer",fontWeight:700,fontSize:14}}>Submit Answers</button>}
+        {done&&<button onClick={()=>{setAns({});setDone(false);if(onReset)onReset();}} style={{background:"transparent",border:"1.5px solid "+C.gold,color:"#8b7355",borderRadius:8,padding:"10px 24px",cursor:"pointer",fontWeight:600,fontSize:14}}>Try Again</button>}
+        {!done&&<button onClick={submitQuiz} disabled={Object.keys(ans).length<questions.length} style={{background:Object.keys(ans).length<questions.length?"#d0c9bc":"#1a1a1a",color:"#fff",border:"none",borderRadius:8,padding:"12px 32px",cursor:Object.keys(ans).length<questions.length?"not-allowed":"pointer",fontWeight:700,fontSize:14}}>Submit Answers</button>}
       </div>
     </div>
   );
@@ -1340,6 +1321,7 @@ function ReadingModule({ supabase, currentUser }){
   const [uploadStatus,setUploadStatus]=useState("");
   const [readingAns, setReadingAns] = useState({});
   const [quizSubmitted, setQuizSubmitted] = useState(false);
+  const [readingResult, setReadingResult] = useState(null);
   const [langMode, setLangMode] = useState("en"); // "en"|"id" body language toggle
   const [featuredIds, setFeaturedIds] = useState(new Set(["A1","A2","A3"])); // Featured top articles
   const [levelFilter, setLevelFilter] = useState("all"); // Level filter 1/2/3/4/all
@@ -1357,7 +1339,7 @@ function ReadingModule({ supabase, currentUser }){
   }, [supabase, currentUser]);
 
   const handleArticleClick = (a) => {
-    setSelArt(a); setReadingAns({}); setQuizSubmitted(false);
+    setSelArt(a); setReadingAns({}); setQuizSubmitted(false); setReadingResult(null);
   };
   // Read the published Supabase copy first. Google Sheets remains the editor and
   // only acts as a compatibility fallback while a deployment is being migrated.
@@ -1535,7 +1517,7 @@ function ReadingModule({ supabase, currentUser }){
   // Save reading progress to database — only once the quiz has actually been submitted,
   // so the article moves into profile history and disappears from the reading list.
   const saveReadingProgress = async () => {
-    if (!supabase || !currentUser || !selArt || !quizSubmitted) return;
+    if (!supabase || !currentUser || !selArt || !quizSubmitted || !readingResult) return;
     if (gq(selArt.id).length === 0) return; // no quiz to answer — nothing to mark as completed
 
     try {
@@ -1545,8 +1527,11 @@ function ReadingModule({ supabase, currentUser }){
       const { error } = await supabase.from("reading_progress").upsert({
         user_id: currentUser.id,
         article_id: selArt.id,
+        article_level: String(selArt.level),
         vocab_completed: vocabCount,
         quiz_answered: quizCount,
+        quiz_score: readingResult.score,
+        quiz_total: readingResult.total,
         completed_at: new Date().toISOString()
       }, { onConflict: "user_id,article_id" });
 
@@ -1733,7 +1718,7 @@ function ReadingModule({ supabase, currentUser }){
           </div>}
 
           {artTab==="vocab"&&<VocabPracticeTab vl={vl} dark={dk} C={C} txtP={txtP} txtS={txtS} bdgBg={bdgBg} bgCard={bgCard} bdrC={bdrC}/>}
-          {artTab==="quiz"&&<ReadingQuiz questions={ql} dark={dk} onAnswersChange={setReadingAns} onSubmit={()=>setQuizSubmitted(true)}/>}
+          {artTab==="quiz"&&<ReadingQuiz questions={ql} dark={dk} onAnswersChange={setReadingAns} onSubmit={(result)=>{setReadingResult(result);setQuizSubmitted(true);}} onReset={()=>{setReadingResult(null);setQuizSubmitted(false);}}/>}
         </article>
         <TranslatePanel dark={dk} apiKey={GOOGLE_API_KEY}/>
       </div>

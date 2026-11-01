@@ -1,107 +1,67 @@
-// AuthPages.jsx - Login page (Google OAuth via Supabase Auth)
-
 import { useState } from "react";
 
-const C = {
-  navyDark: "#1a2744",
-  sage: "#5d8a6e",
-  sageLight: "#7ea88a",
-  cream: "#f9f7f2",
-};
+const C = { navy: "#1a2744", sage: "#5d8a6e", cream: "#f9f7f2" };
 
-export function LoginPage({ onLoginSuccess, supabase }) {
+export function LoginPage({ supabase }) {
+  const [mode, setMode] = useState("login");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [message, setMessage] = useState("");
   const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState("");
 
-  const handleGoogleLogin = async () => {
-    if (!supabase) {
-      setError("Supabase belum dikonfigurasi");
-      return;
-    }
-    setLoading(true);
-    try {
-      const { error: err } = await supabase.auth.signInWithOAuth({
-        provider: "google",
-        options: {
-          redirectTo: window.location.origin,
-        },
-      });
-      if (err) throw err;
-    } catch (err) {
-      setError(err.message);
-      setLoading(false);
-    }
+  const begin = (name) => { setError(""); setMessage(""); setLoading(name); };
+
+  const oauth = async (provider) => {
+    if (!supabase) return setError("Supabase belum dikonfigurasi.");
+    begin(provider);
+    const { error: authError } = await supabase.auth.signInWithOAuth({
+      provider,
+      options: { redirectTo: window.location.origin },
+    });
+    if (authError) { setError(authError.message); setLoading(""); }
   };
 
+  const submitEmail = async (event) => {
+    event.preventDefault();
+    if (!supabase) return setError("Supabase belum dikonfigurasi.");
+    begin("email");
+    const credentials = { email: email.trim(), password };
+    const result = mode === "register"
+      ? await supabase.auth.signUp({ ...credentials, options: { emailRedirectTo: window.location.origin } })
+      : await supabase.auth.signInWithPassword(credentials);
+    if (result.error) setError(result.error.message);
+    else if (mode === "register" && !result.data.session) setMessage("Akun dibuat. Cek email untuk mengaktifkan akun, lalu login.");
+    setLoading("");
+  };
+
+  const field = { width: "100%", padding: "12px 14px", border: "1px solid #d8dbe2", borderRadius: 9, fontSize: 14, outline: "none" };
+  const social = { width: "100%", padding: 12, background: "#fff", color: "#263043", border: "1px solid #d8dbe2", borderRadius: 9, fontWeight: 650, cursor: "pointer" };
+
   return (
-    <div
-      style={{
-        minHeight: "100vh",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        background: `linear-gradient(135deg, ${C.navyDark} 0%, #0f1723 100%)`,
-        padding: "20px",
-      }}
-    >
-      <div
-        style={{
-          maxWidth: 400,
-          width: "100%",
-          background: "#fff",
-          borderRadius: 16,
-          padding: "40px 32px",
-          boxShadow: "0 20px 60px rgba(0,0,0,0.3)",
-        }}
-      >
-        <h2
-          style={{
-            textAlign: "center",
-            fontFamily: "'DM Serif Display',serif",
-            color: C.navyDark,
-            marginBottom: 6,
-            fontSize: 28,
-          }}
-        >
-          EduEnglish
-        </h2>
-        <p style={{ textAlign: "center", color: "#888", fontSize: 13, marginBottom: 28 }}>
-          Platform Persiapan LBE SNBT
-        </p>
+    <div style={{ minHeight: "calc(100vh - 50px)", display: "grid", placeItems: "center", background: `linear-gradient(145deg,${C.navy},#0e1627)`, padding: 20 }}>
+      <div style={{ width: "100%", maxWidth: 430, background: C.cream, borderRadius: 18, padding: "36px 32px", boxShadow: "0 22px 60px rgba(0,0,0,.3)" }}>
+        <h1 style={{ textAlign: "center", color: C.navy, fontFamily: "'DM Serif Display',serif", fontSize: 30, marginBottom: 5 }}>EduEnglish</h1>
+        <p style={{ textAlign: "center", color: "#77808f", fontSize: 13, marginBottom: 25 }}>Masuk agar perkembangan belajarmu tersimpan</p>
 
-        {error && (
-          <div
-            style={{
-              background: "#fce8e6",
-              color: "#c1554d",
-              padding: "12px 14px",
-              borderRadius: 8,
-              marginBottom: 18,
-              fontSize: 13,
-              lineHeight: 1.5,
-            }}
-          >
-            {error}
-          </div>
-        )}
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", background: "#ebe9e3", borderRadius: 9, padding: 3, marginBottom: 22 }}>
+          {[["login","Masuk"],["register","Daftar"]].map(([key,label]) => <button key={key} onClick={() => { setMode(key); setError(""); setMessage(""); }} style={{ padding: 9, border: 0, borderRadius: 7, background: mode === key ? "#fff" : "transparent", color: C.navy, fontWeight: 700, cursor: "pointer", boxShadow: mode === key ? "0 1px 4px rgba(0,0,0,.08)" : "none" }}>{label}</button>)}
+        </div>
 
-        <button
-          onClick={handleGoogleLogin}
-          disabled={loading}
-          style={{
-            width: "100%",
-            padding: 12,
-            background: "#fff",
-            color: "#333",
-            border: "1px solid #ddd",
-            borderRadius: 8,
-            fontWeight: 600,
-            cursor: "pointer",
-            opacity: loading ? 0.7 : 1,
-          }}
-        >
-          {loading ? "Loading..." : "🔐 Login dengan Google"}
-        </button>
+        {(error || message) && <div role="status" style={{ padding: "11px 13px", borderRadius: 8, marginBottom: 16, fontSize: 13, lineHeight: 1.45, background: error ? "#fce8e6" : "#e8f5ec", color: error ? "#a83c35" : "#27633c" }}>{error || message}</div>}
+
+        <form onSubmit={submitEmail} style={{ display: "grid", gap: 12 }}>
+          <input type="email" autoComplete="email" required value={email} onChange={e => setEmail(e.target.value)} placeholder="Email" style={field} />
+          <input type="password" autoComplete={mode === "login" ? "current-password" : "new-password"} required minLength={6} value={password} onChange={e => setPassword(e.target.value)} placeholder="Password (minimal 6 karakter)" style={field} />
+          <button disabled={!!loading} style={{ width: "100%", padding: 12, border: 0, borderRadius: 9, background: C.sage, color: "#fff", fontWeight: 750, cursor: "pointer", opacity: loading ? .65 : 1 }}>{loading === "email" ? "Memproses..." : mode === "login" ? "Masuk dengan Email" : "Buat Akun"}</button>
+        </form>
+
+        <div style={{ display: "flex", alignItems: "center", gap: 12, color: "#a1a5ad", fontSize: 12, margin: "21px 0" }}><span style={{ height: 1, background: "#ddd", flex: 1 }} /><span>atau lanjutkan dengan</span><span style={{ height: 1, background: "#ddd", flex: 1 }} /></div>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+          <button disabled={!!loading} onClick={() => oauth("google")} style={social}>{loading === "google" ? "Memuat..." : "G  Google"}</button>
+          <button disabled={!!loading} onClick={() => oauth("x")} style={{ ...social, background: "#111", color: "#fff", borderColor: "#111" }}>{loading === "x" ? "Memuat..." : "𝕏  X"}</button>
+        </div>
+        <p style={{ color: "#9499a3", fontSize: 11, lineHeight: 1.5, textAlign: "center", marginTop: 20 }}>Dengan masuk, progres vocab, artikel, dan quiz tersimpan di profilmu.</p>
       </div>
     </div>
   );

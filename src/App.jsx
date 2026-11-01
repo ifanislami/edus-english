@@ -19,6 +19,17 @@ const SHEET_VOCAB = "vocab_quiz"; // for standalone vocab quiz
 const SHEET_RD_VOCAB = "vocab"; // for reading module
 const SHEET_RD_QUIZ = "quiz_article"; // for reading module
 const SHEETS_CACHE_KEY = "edus_sheets_cache_v1"; // localStorage cache for reading data
+const FALLBACK_ARTICLE_IMAGE = "https://images.unsplash.com/photo-1456513080510-7bf3a84b82f8?auto=format&fit=crop&w=1080&q=80";
+
+function handleArticleImageFallback(event) {
+  const image = event.currentTarget;
+  if (image.dataset.fallbackApplied === "true") {
+    image.style.display = "none";
+    return;
+  }
+  image.dataset.fallbackApplied = "true";
+  image.src = FALLBACK_ARTICLE_IMAGE;
+}
 // ─────────────────────────────────────────────────────────────────────────────
 
 // ═══════════════════════════════════════
@@ -57,7 +68,7 @@ async function fetchReadingFromSupabase(client) {
       id: a.id, title: a.title, topics: a.topics, level: a.level,
       word_count: a.word_count, writers: a.writers, source: a.source,
       date: a.published_on, body: a.body_eng, body_idn: a.body_idn,
-      image: a.image_url || "https://images.unsplash.com/photo-1456513080510-7bf3a84b82f8?w=800"
+      image: a.image_url || FALLBACK_ARTICLE_IMAGE
     })),
     vocab: (vocabResult.data || []).map(v => ({
       aid: v.article_id, vid: v.id, word: v.word, translation: v.translation || "",
@@ -91,7 +102,7 @@ function parseArticlesSheet(rows) {
       date: r.date || r.Date || null,
       body: (r.body_eng || r.body || r.Body_eng || r.Body || "").replace(/\\n/g, "\n").trim(),
       body_idn: (r.body_idn || r.Body_idn || "").replace(/\\n/g, "\n").trim(),
-      image: r.url_image || r.image_url || r.image || "https://images.unsplash.com/photo-1456513080510-7bf3a84b82f8?w=800"
+      image: r.url_image || r.image_url || r.image || FALLBACK_ARTICLE_IMAGE
     }));
   return { articles, vocab: [], quiz: [] };
 }
@@ -1071,7 +1082,7 @@ function AddArticleWizard({onCancel,onSave,existingIds}){
   const uQO=(qi,oi,v)=>setQList(p=>p.map((q,j)=>j===qi?{...q,options:q.options.map((o,k)=>k===oi?v:o)}:q));
   const okSave=qList.length>0&&qList.every(q=>q.question.trim()&&q.options.every(o=>o.trim())&&q.answer.trim());
   const doSave=()=>{
-    const art={id:newId,title:form.title.trim(),topics:form.topics,level:form.level,body:form.body.trim(),image:form.image.trim()||"https://images.unsplash.com/photo-1456513080510-7bf3a84b82f8?w=800"};
+    const art={id:newId,title:form.title.trim(),topics:form.topics,level:form.level,body:form.body.trim(),image:form.image.trim()||FALLBACK_ARTICLE_IMAGE};
     const vocs=vList.filter(v=>v.word.trim()).map((v,i)=>({aid:newId,vid:newId+"_V"+(i+1),word:v.word.trim(),translation:v.translation.trim(),pos:v.pos,context:v.context.trim()}));
     const quizzes=qList.filter(q=>q.question.trim()&&q.answer.trim()).map((q,i)=>({qid:newId+"_Q"+(i+1),aid:newId,question:q.question.trim(),options:q.options.map(o=>o.trim()),answer:q.answer.trim()}));
     onSave(art,vocs,quizzes);
@@ -1709,7 +1720,7 @@ function ReadingModule({ supabase, currentUser }){
               {selArt.date&&<span>{String(selArt.date).split("T")[0]}</span>}
             </div>
           </div>
-          <div style={{marginBottom:38,overflow:"hidden",borderBottom:`1px solid ${bdrC}`}}><img src={selArt.image} alt="" style={{width:"100%",height:"clamp(280px,48vw,480px)",objectFit:"cover",filter:dk?"brightness(0.72) saturate(.75)":"none",transition:"filter .3s",display:"block"}}/></div>
+          <div style={{marginBottom:38,overflow:"hidden",borderBottom:`1px solid ${bdrC}`}}><img src={selArt.image} onError={handleArticleImageFallback} alt="" style={{width:"100%",height:"clamp(280px,48vw,480px)",objectFit:"cover",filter:dk?"brightness(0.72) saturate(.75)":"none",transition:"filter .3s",display:"block"}}/></div>
 
           {artTab==="read"&&<div>
             <div style={{background:"transparent",padding:"13px 0",marginBottom:36,fontSize:13,color:txtS,borderTop:"1px solid #c65d2e",borderBottom:`1px solid ${bdrC}`}}>
@@ -1786,7 +1797,7 @@ function ReadingModule({ supabase, currentUser }){
 
         {lead&&<section className="news-lead-grid" aria-label="Top stories">
           <article className="news-lead" onClick={()=>handleArticleClick(lead)}>
-            <div className="news-image"><img src={lead.image} alt=""/></div>
+            <div className="news-image"><img src={lead.image} onError={handleArticleImageFallback} alt=""/></div>
             <div className="news-story-label"><span>{lead.topics}</span><b>Level {lead.level}</b></div>
             <h2>{lead.title}</h2>
             <p>{lead.body.split("\n\n")[0]}</p>
@@ -1794,7 +1805,7 @@ function ReadingModule({ supabase, currentUser }){
           </article>
           <div className="news-supporting">
             {supporting.map(a=><article key={a.id} onClick={()=>handleArticleClick(a)}>
-              <div className="news-supporting-image"><img src={a.image} alt=""/></div>
+              <div className="news-supporting-image"><img src={a.image} onError={handleArticleImageFallback} alt=""/></div>
               <div className="news-story-label"><span>{a.topics}</span><b>Level {a.level}</b></div>
               <h3>{a.title}</h3>
               <div className="news-meta">{meta(a)}</div>
@@ -1815,7 +1826,7 @@ function ReadingModule({ supabase, currentUser }){
                     <p>{a.body.split("\n\n")[0]}</p>
                     <div className="news-meta">{meta(a)} · {vc} vocab · {qc} questions</div>
                   </div>
-                  {a.image&&<div className="news-feed-image"><img src={a.image} alt=""/></div>}
+                  {a.image&&<div className="news-feed-image"><img src={a.image} onError={handleArticleImageFallback} alt=""/></div>}
                 </article>;
               })}
             </div>

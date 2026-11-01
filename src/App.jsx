@@ -1244,23 +1244,22 @@ function PodcastSlider({ dark, onSeeMore }){
     <div style={{position:"relative"}}>
       <div ref={ref} style={{display:"flex",gap:14,overflowX:"auto",scrollbarWidth:"none",WebkitOverflowScrolling:"touch",padding:"2px 2px 10px"}}>
         {PODCAST_BUKU.map(p=>(
-          <div key={p.id} onClick={()=>window.open(p.url,"_blank","noopener")} style={{flexShrink:0,width:200,background:cardBg,borderRadius:14,padding:18,border:"1px solid "+bdrC,cursor:"pointer",boxShadow:dark?"none":"0 4px 18px rgba(26,39,68,0.08)",transition:"all .18s",display:"flex",flexDirection:"column"}}
-            onMouseEnter={e=>{e.currentTarget.style.transform="translateY(-3px)";e.currentTarget.style.boxShadow=dark?"0 6px 24px rgba(0,0,0,0.4)":"0 8px 24px rgba(26,39,68,0.14)";}}
-            onMouseLeave={e=>{e.currentTarget.style.transform="none";e.currentTarget.style.boxShadow=dark?"none":"0 4px 18px rgba(26,39,68,0.08)";}}>
-            <div style={{fontSize:30,marginBottom:12}}>{p.icon}</div>
+          <div key={p.id} onClick={()=>window.open(p.url,"_blank","noopener")} style={{flexShrink:0,width:220,background:"transparent",padding:"14px 18px 18px 0",border:"none",borderTop:"2px solid "+(dark?"#555":"#1a1a1a"),cursor:"pointer",transition:"opacity .18s",display:"flex",flexDirection:"column"}}
+            onMouseEnter={e=>{e.currentTarget.style.opacity=".68";}}
+            onMouseLeave={e=>{e.currentTarget.style.opacity="1";}}>
+            <div style={{fontSize:9,fontWeight:700,letterSpacing:".14em",textTransform:"uppercase",color:"#c65d2e",marginBottom:18}}>Book audio</div>
             <div style={{fontWeight:700,fontSize:"0.85rem",color:txtP,marginBottom:4,lineHeight:1.3}}>{p.title}</div>
             <div style={{fontSize:"0.72rem",color:txtS}}>{p.author} · {p.year}</div>
           </div>
         ))}
-        <div onClick={onSeeMore} style={{flexShrink:0,width:200,borderRadius:14,padding:18,cursor:"pointer",background:"linear-gradient(135deg,#1a2744,#243358)",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:8,color:"#fff",textAlign:"center"}}>
-          <span style={{fontSize:26}}>🎧</span>
-          <span style={{fontSize:"0.85rem",fontWeight:700}}>Lebih banyak</span>
-          <span style={{fontSize:"0.7rem",color:"rgba(255,255,255,0.6)"}}>{PODCAST_BUKU.length} podcast buku</span>
-          <span style={{fontSize:"1.2rem",color:"#F39C12",lineHeight:1}}>›</span>
+        <div onClick={onSeeMore} style={{flexShrink:0,width:180,padding:"14px 0 18px",cursor:"pointer",borderTop:"2px solid #c65d2e",display:"flex",flexDirection:"column",justifyContent:"space-between",gap:8,color:txtP,textAlign:"left"}}>
+          <span style={{fontSize:9,fontWeight:700,letterSpacing:".14em",textTransform:"uppercase",color:"#c65d2e"}}>Library</span>
+          <span style={{fontSize:"1rem",fontWeight:700}}>Explore all audio →</span>
+          <span style={{fontSize:"0.7rem",color:txtS}}>{PODCAST_BUKU.length} podcast buku</span>
         </div>
       </div>
-      <button onClick={()=>scroll(-1)} aria-label="Geser kiri" style={{position:"absolute",left:-8,top:"46%",transform:"translateY(-50%)",width:32,height:32,borderRadius:"50%",background:btn,border:"1px solid "+(dark?"#444":"#d8d3c8"),color:txtP,cursor:"pointer",fontSize:15,display:"flex",alignItems:"center",justifyContent:"center",boxShadow:"0 2px 8px rgba(0,0,0,0.15)",zIndex:2}}>‹</button>
-      <button onClick={()=>scroll(1)} aria-label="Geser kanan" style={{position:"absolute",right:-8,top:"46%",transform:"translateY(-50%)",width:32,height:32,borderRadius:"50%",background:btn,border:"1px solid "+(dark?"#444":"#d8d3c8"),color:txtP,cursor:"pointer",fontSize:15,display:"flex",alignItems:"center",justifyContent:"center",boxShadow:"0 2px 8px rgba(0,0,0,0.15)",zIndex:2}}>›</button>
+      <button onClick={()=>scroll(-1)} aria-label="Geser kiri" style={{position:"absolute",left:-8,top:"46%",transform:"translateY(-50%)",width:30,height:30,borderRadius:2,background:btn,border:"1px solid "+(dark?"#444":"#d8d3c8"),color:txtP,cursor:"pointer",fontSize:15,display:"flex",alignItems:"center",justifyContent:"center",zIndex:2}}>‹</button>
+      <button onClick={()=>scroll(1)} aria-label="Geser kanan" style={{position:"absolute",right:-8,top:"46%",transform:"translateY(-50%)",width:30,height:30,borderRadius:2,background:btn,border:"1px solid "+(dark?"#444":"#d8d3c8"),color:txtP,cursor:"pointer",fontSize:15,display:"flex",alignItems:"center",justifyContent:"center",zIndex:2}}>›</button>
     </div>
   );
 }
@@ -1300,6 +1299,20 @@ function PodcastBukuPage({ onBack, dark }){
       </div>
     </div>
   );
+}
+
+function getSourceName(source){
+  if(!source)return "Tumbuh Academy";
+  try{
+    return new URL(source).hostname.replace(/^www\./,"").replace(/^amp\./,"");
+  }catch{
+    return source;
+  }
+}
+
+function readingMinutes(wordCount, body=""){
+  const words=Number(wordCount)||body.trim().split(/\s+/).filter(Boolean).length;
+  return Math.max(1,Math.ceil(words/180));
 }
 
 function ReadingModule({ supabase, currentUser }){
@@ -1657,50 +1670,50 @@ function ReadingModule({ supabase, currentUser }){
   if(selArt){
     const vl=gv(selArt.id);const ql=gq(selArt.id);
     return(
-      <div style={{minHeight:"100vh",background:dk?"#111":"#faf7f2",fontFamily:"'Source Sans 3',sans-serif",transition:"background .3s"}}>
+      <div style={{minHeight:"100vh",background:dk?"#121310":"#f7f4ed",fontFamily:"'DM Sans',sans-serif",transition:"background .3s"}}>
         {/* Reading Progress Bar */}
         {artTab==="read"&&<ReadingProgressBar dark={dk}/>}
-        <div style={{position:"sticky",top:48,zIndex:100,background:dk?"rgba(17,17,17,0.97)":"rgba(250,247,242,0.95)",backdropFilter:"blur(10px)",borderBottom:`1px solid ${bdrC}`,padding:"12px 0"}}>
-          <div style={{maxWidth:780,margin:"0 auto",padding:"0 24px",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+        <div style={{position:"sticky",top:48,zIndex:100,background:dk?"rgba(18,19,16,0.97)":"rgba(247,244,237,0.96)",backdropFilter:"blur(10px)",borderBottom:`1px solid ${bdrC}`,padding:"9px 0"}}>
+          <div style={{maxWidth:860,margin:"0 auto",padding:"0 24px",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
            <button onClick={async ()=>{
   await saveReadingProgress();
   setSelArt(null);
   setArtTab("read");
-}} style={{background:"none",border:"none",cursor:"pointer",fontSize:14,fontWeight:600,color:"#8b7355",fontFamily:"'Source Sans 3',sans-serif"}}>← Back</button>
+}} style={{background:"none",border:"none",cursor:"pointer",fontSize:12,fontWeight:700,color:dk?"#c4c6bd":"#4f534b",fontFamily:"'DM Sans',sans-serif",letterSpacing:".04em",textTransform:"uppercase"}}>← All stories</button>
             <div style={{display:"flex",gap:8,alignItems:"center"}}>
-              <button onClick={()=>setDark(d=>!d)} style={{padding:"5px 12px",background:dk?"#2a2a2a":"#f0ece4",border:`1px solid ${dk?"#444":"#d8d3c8"}`,borderRadius:6,fontSize:12,cursor:"pointer",color:dk?"#e8c87a":"#8b7355",fontWeight:600,fontFamily:"'Source Sans 3',sans-serif"}}>{dk?"☀":"🌙"}</button>
-              {selArt.body_idn&&<div style={{display:"flex",background:dk?"#2a2a2a":"#e8e2d8",borderRadius:6,padding:2,gap:1}}>
-                <button onClick={()=>setLangMode("en")} style={{padding:"4px 10px",background:langMode==="en"?(dk?"#555":"#fff"):"transparent",border:"none",borderRadius:4,cursor:"pointer",fontSize:11,fontWeight:langMode==="en"?700:500,color:langMode==="en"?"#1a1a1a":"#888",transition:"all .15s"}}>🇬🇧 EN</button>
-                <button onClick={()=>setLangMode("id")} style={{padding:"4px 10px",background:langMode==="id"?(dk?"#555":"#fff"):"transparent",border:"none",borderRadius:4,cursor:"pointer",fontSize:11,fontWeight:langMode==="id"?700:500,color:langMode==="id"?"#1a1a1a":"#888",transition:"all .15s"}}>🇮🇩 ID</button>
+              <button onClick={()=>setDark(d=>!d)} style={{padding:"6px 9px",background:"transparent",border:`1px solid ${dk?"#444":"#cbc7bc"}`,borderRadius:2,fontSize:10,cursor:"pointer",color:dk?"#e8c87a":"#55594f",fontWeight:700,fontFamily:"'DM Sans',sans-serif",textTransform:"uppercase",letterSpacing:".08em"}}>{dk?"Light":"Dark"}</button>
+              {selArt.body_idn&&<div style={{display:"flex",background:"transparent",border:`1px solid ${dk?"#444":"#cbc7bc"}`,borderRadius:2,padding:0,gap:0}}>
+                <button onClick={()=>setLangMode("en")} style={{padding:"5px 9px",background:langMode==="en"?(dk?"#eee":"#171814"):"transparent",border:"none",cursor:"pointer",fontSize:10,fontWeight:700,color:langMode==="en"?(dk?"#111":"#fff"):"#888"}}>EN</button>
+                <button onClick={()=>setLangMode("id")} style={{padding:"5px 9px",background:langMode==="id"?(dk?"#eee":"#171814"):"transparent",border:"none",cursor:"pointer",fontSize:10,fontWeight:700,color:langMode==="id"?(dk?"#111":"#fff"):"#888"}}>ID</button>
               </div>}
-              <div style={{display:"flex",background:dk?"#2a2a2a":"#e8e2d8",borderRadius:8,padding:3}}>
-                {[{id:"read",label:"Read",icon:"📖"},{id:"vocab",label:"Vocabulary ("+vl.length+")",icon:"📝"},{id:"quiz",label:"Quiz ("+ql.length+")",icon:"🧠"}].map(t=>(
-                  <button key={t.id} onClick={()=>setArtTab(t.id)} style={{background:artTab===t.id?bgCard:"transparent",border:"none",borderRadius:6,padding:"6px 14px",cursor:"pointer",fontSize:12,fontWeight:artTab===t.id?700:500,color:artTab===t.id?txtP:"#888",fontFamily:"'Source Sans 3',sans-serif",boxShadow:artTab===t.id?"0 1px 3px rgba(0,0,0,0.08)":"none",transition:"all .15s"}}>{t.icon} {t.label}</button>
+              <div style={{display:"flex",background:"transparent",borderBottom:`1px solid ${dk?"#444":"#cbc7bc"}`}}>
+                {[{id:"read",label:"Read"},{id:"vocab",label:"Vocabulary "+vl.length},{id:"quiz",label:"Quiz "+ql.length}].map(t=>(
+                  <button key={t.id} onClick={()=>setArtTab(t.id)} style={{background:"transparent",border:"none",borderBottom:artTab===t.id?"2px solid #c65d2e":"2px solid transparent",padding:"7px 11px",cursor:"pointer",fontSize:10,fontWeight:700,color:artTab===t.id?txtP:"#888",fontFamily:"'DM Sans',sans-serif",textTransform:"uppercase",letterSpacing:".06em"}}>{t.label}</button>
                 ))}
               </div>
             </div>
           </div>
         </div>
-        <article style={{maxWidth:780,margin:"0 auto",padding:"40px 24px 80px"}}>
-          <span style={{fontSize:12,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.14em",color:"#8b7355"}}>{selArt.topics}</span>
-          <h1 style={{fontSize:42,fontWeight:700,lineHeight:1.1,margin:"16px 0 20px",fontFamily:"'Playfair Display',serif",color:txtP,transition:"color .3s"}}>{selArt.title}</h1>
+        <article style={{maxWidth:860,margin:"0 auto",padding:"48px 24px 88px"}}>
+          <span style={{fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.16em",color:"#c65d2e"}}>{selArt.topics} · Level {selArt.level}</span>
+          <h1 style={{fontSize:"clamp(40px,6vw,64px)",fontWeight:400,lineHeight:.98,letterSpacing:"-.035em",margin:"18px 0 22px",fontFamily:"'DM Serif Display',serif",color:txtP,transition:"color .3s",maxWidth:820}}>{selArt.title}</h1>
           <div style={{paddingBottom:24,borderBottom:"1px solid "+bdrC,marginBottom:32}}>
             <div style={{display:"flex",flexWrap:"wrap",alignItems:"center",gap:8,marginBottom:10}}>
-              <span style={{fontSize:10,fontWeight:700,textTransform:"uppercase",color:lc[selArt.level]||"#888",background:(lc[selArt.level]||"#888")+"22",padding:"4px 12px",borderRadius:4}}>{ll[selArt.level]||"Level "+selArt.level}</span>
-              {selArt.word_count&&<span style={{fontSize:11,color:txtM,background:dk?"#2a2a2a":"#f0ece4",padding:"3px 10px",borderRadius:4}}>{selArt.word_count} words</span>}
-              <span style={{fontSize:11,color:"#8b7355",background:bdgBg,padding:"3px 10px",borderRadius:4}}>{vl.length} vocab · {ql.length} quiz</span>
+              {selArt.word_count&&<span style={{fontSize:11,color:txtM}}>{selArt.word_count} words</span>}
+              <span style={{fontSize:11,color:txtM}}>· {readingMinutes(selArt.word_count,selArt.body)} min read</span>
+              <span style={{fontSize:11,color:txtM}}>· {vl.length} vocab · {ql.length} questions</span>
             </div>
             <div style={{display:"flex",flexWrap:"wrap",gap:16,fontSize:13,color:txtS}}>
-              {selArt.writers&&<span>✍ {selArt.writers}</span>}
-              {selArt.source&&<span>📰 {selArt.source}</span>}
-              {selArt.date&&<span>🗓 {String(selArt.date).split("T")[0]}</span>}
+              {selArt.writers&&<span>By {selArt.writers}</span>}
+              {selArt.source&&<span>Source: {getSourceName(selArt.source)}</span>}
+              {selArt.date&&<span>{String(selArt.date).split("T")[0]}</span>}
             </div>
           </div>
-          <div style={{marginBottom:36,borderRadius:6,overflow:"hidden"}}><img src={selArt.image} alt="" style={{width:"100%",height:380,objectFit:"cover",filter:dk?"grayscale(30%) brightness(0.75)":"grayscale(8%)",transition:"filter .3s"}}/></div>
+          <div style={{marginBottom:38,overflow:"hidden",borderBottom:`1px solid ${bdrC}`}}><img src={selArt.image} alt="" style={{width:"100%",height:"clamp(280px,48vw,480px)",objectFit:"cover",filter:dk?"brightness(0.72) saturate(.75)":"none",transition:"filter .3s",display:"block"}}/></div>
 
           {artTab==="read"&&<div>
-            <div style={{background:hintBg,borderRadius:8,padding:"14px 18px",marginBottom:36,display:"flex",alignItems:"center",gap:10,fontSize:14,color:dk?"#c9a84c":"#6b5634",borderLeft:"4px solid #c9a84c"}}>
-              <span style={{fontSize:18}}>📖</span><span><strong>{vl.length} kata penting</strong> ter-highlight di artikel ini. Klik kata bergaris bawah untuk melihat artinya.</span>
+            <div style={{background:"transparent",padding:"13px 0",marginBottom:36,fontSize:13,color:txtS,borderTop:"1px solid #c65d2e",borderBottom:`1px solid ${bdrC}`}}>
+              <strong style={{color:txtP}}>{vl.length} vocabulary words</strong> are highlighted. Select an underlined word to see its meaning.
             </div>
             {langMode==="id"&&selArt.body_idn?(
               <div>
@@ -1727,98 +1740,102 @@ function ReadingModule({ supabase, currentUser }){
   }
 
   // ── READING HOME ──
+  const lead=filt[0];
+  const supporting=filt.slice(1,3);
+  const latest=filt.slice(3);
+  const meta=(a)=>`${getSourceName(a.source)} · ${a.date?String(a.date).split("T")[0]+" · ":""}${readingMinutes(a.word_count,a.body)} min read`;
   return(
-    <div style={{minHeight:"100vh",background:bg,fontFamily:"'Source Sans 3',sans-serif",transition:"background .3s"}}>
-      <div style={{textAlign:"center",padding:"36px 24px 8px",borderBottom:dk?"3px double #444":"3px double #1a1a1a",maxWidth:1100,margin:"0 auto"}}>
-        <div style={{fontSize:11,color:txtM,letterSpacing:"0.14em",textTransform:"uppercase"}}>English Reading Practice</div>
-        <h1 style={{fontFamily:"'Playfair Display',serif",fontSize:48,fontWeight:900,color:txtP,letterSpacing:"-0.02em",marginBottom:6,lineHeight:1,transition:"color .3s"}}>The Reading Room</h1>
-        <div style={{fontSize:13,color:txtM,fontFamily:"'Source Serif 4',serif",fontStyle:"italic",marginBottom:10}}>Baca, pelajari, dan perkaya kosakata Inggrismu</div>
-      </div>
+    <div className={dk?"news-shell news-dark":"news-shell"}>
+      <header className="news-masthead">
+        <div className="news-kicker">Tumbuh Academy · English Newsroom</div>
+        <div className="news-masthead-row">
+          <div>
+            <h1>Read the news.<br/>Build your English.</h1>
+            <p>Berita aktual yang diolah menjadi latihan membaca bertingkat—dengan vocab, terjemahan, dan quiz.</p>
+          </div>
+          <div className="news-edition"><span>Today’s edition</span><strong>{new Intl.DateTimeFormat("id-ID",{day:"numeric",month:"long",year:"numeric"}).format(new Date())}</strong></div>
+        </div>
+      </header>
 
-      {/* STICKY NAV: Saintek | Soshum | Topik dropdown | Dark/Light */}
-      <div style={{position:"sticky",top:48,zIndex:150,background:navBg,backdropFilter:"blur(8px)",borderBottom:"1px solid "+(dk?"#2a2a2a":"#e0dcd5")}}>
-        <div style={{maxWidth:1100,margin:"0 auto",padding:"0 16px",display:"flex",alignItems:"center",gap:0}}>
-          <button onClick={()=>setCat(cat==="Saintek"?"all":"Saintek")} style={{background:"none",border:"none",padding:"14px 18px",color:cat==="Saintek"?txtP:navInact,fontFamily:"'Source Sans 3',sans-serif",fontSize:13,fontWeight:cat==="Saintek"?700:600,cursor:"pointer",borderBottom:cat==="Saintek"?"3px solid #F39C12":"3px solid transparent",transition:"all .15s",whiteSpace:"nowrap"}}>Saintek</button>
-          <button onClick={()=>setCat(cat==="Soshum"?"all":"Soshum")} style={{background:"none",border:"none",padding:"14px 18px",color:cat==="Soshum"?txtP:navInact,fontFamily:"'Source Sans 3',sans-serif",fontSize:13,fontWeight:cat==="Soshum"?700:600,cursor:"pointer",borderBottom:cat==="Soshum"?"3px solid #F39C12":"3px solid transparent",transition:"all .15s",whiteSpace:"nowrap"}}>Soshum</button>
+      <nav className="news-topicbar" aria-label="Kategori berita">
+        <div className="news-topicbar-inner">
+          <button className={cat==="all"?"active":""} onClick={()=>setCat("all")}>Latest</button>
+          <button className={cat==="Saintek"?"active":""} onClick={()=>setCat(cat==="Saintek"?"all":"Saintek")}>Saintek</button>
+          <button className={cat==="Soshum"?"active":""} onClick={()=>setCat(cat==="Soshum"?"all":"Soshum")}>Soshum</button>
           <TopikDropdown cat={cat} setCat={setCat} dark={dk}/>
-          <div style={{marginLeft:"auto",display:"flex",alignItems:"center",gap:8,flexShrink:0}}>
-            <button onClick={()=>setDark(d=>!d)} style={{padding:"7px 14px",background:dk?"#2a2a2a":"#f0ece4",border:"1.5px solid "+(dk?"#444":"#d8d3c8"),borderRadius:7,fontSize:12,cursor:"pointer",color:dk?"#e8c87a":"#8b7355",fontWeight:600}}>{dk?"☀ Light":"🌙 Dark"}</button>
-            {currentUser?.role==="admin"&&<button onClick={()=>setShowAdmin(true)} style={{padding:"7px 14px",background:"transparent",border:"1.5px solid "+(dk?"#444":"#d8d3c8"),borderRadius:7,fontSize:12,fontWeight:600,color:dk?"rgba(255,255,255,0.4)":"#8b7355",cursor:"pointer"}}>⚙</button>}
+          <div className="news-topic-actions">
+            <button onClick={()=>setDark(d=>!d)} aria-label="Ganti tema">{dk?"Light":"Dark"}</button>
+            {currentUser?.role==="admin"&&<button onClick={()=>setShowAdmin(true)}>Admin</button>}
           </div>
         </div>
-      </div>
+      </nav>
 
-      {/* INLINE FILTER: Level */}
-      <div style={{maxWidth:1100,margin:"0 auto",padding:"16px 24px 0",display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
-        <span style={{fontSize:11,fontWeight:700,color:txtM,textTransform:"uppercase",letterSpacing:"0.08em",marginRight:4}}>Level:</span>
-        {[["all","Semua"],["1","Level 1"],["2","Level 2"],["3","Level 3"]].map(([val,label])=>(
-          <button key={val} onClick={()=>setLevelFilter(val)} style={{padding:"5px 14px",borderRadius:20,border:"1.5px solid "+(levelFilter===val?"#F39C12":(dk?"#444":"#d8d3c8")),background:levelFilter===val?"#F39C12":(dk?"#1a1a1a":"#fff"),color:levelFilter===val?"#fff":(dk?"rgba(255,255,255,0.6)":"#555"),fontSize:12,fontWeight:levelFilter===val?700:500,cursor:"pointer",transition:"all .15s"}}>
-            {label}
-          </button>
-        ))}
-        <span style={{marginLeft:"auto",fontSize:12,color:txtM}}>{filt.length} artikel</span>
-      </div>
+      <main className="news-main">
+        <div className="news-filter-row">
+          <div className="news-levels" aria-label="Filter level">
+            <span>Reading level</span>
+            {[["all","All"],["1","Level 1"],["2","Level 2"],["3","Level 3"]].map(([val,label])=>(
+              <button key={val} className={levelFilter===val?"active":""} onClick={()=>setLevelFilter(val)}>{label}</button>
+            ))}
+          </div>
+          <span className="news-count">{filt.length} articles</span>
+        </div>
 
-      {/* ARTICLE LIST */}
-      <div style={{maxWidth:1100,margin:"0 auto",padding:"20px 24px 60px"}}>
         {sheetsStatus==="loading"&&filt.length===0&&<ArticleSkeleton dark={dk}/>}
-        {filt.length===0&&sheetsStatus!=="loading"&&<div style={{textAlign:"center",padding:"60px 20px",color:txtM}}><div style={{fontSize:40,marginBottom:12}}>📭</div><div style={{fontSize:16,fontWeight:600,color:txtS}}>Tidak ada artikel di kategori ini</div></div>}
-        {filt.length>0&&(()=>{
-          const a=filt[0],vc=gv(a.id).length,qc=gq(a.id).length;
-          return(
-            <div key={a.id} onClick={()=>setSelArt(a)} style={{display:"grid",gridTemplateColumns:"1.1fr 1fr",gap:36,marginBottom:40,paddingBottom:40,borderBottom:"2px solid "+(dk?"#2a2a2a":"#e0dcd5"),cursor:"pointer"}}>
-              <div style={{overflow:"hidden",borderRadius:8,aspectRatio:"4/3"}}><img src={a.image} alt="" style={{width:"100%",height:"100%",objectFit:"cover",filter:dk?"grayscale(30%) brightness(0.8)":"grayscale(8%)",transition:"transform .3s"}} onMouseEnter={e=>e.target.style.transform="scale(1.03)"} onMouseLeave={e=>e.target.style.transform="none"}/></div>
-              <div style={{display:"flex",flexDirection:"column",justifyContent:"center"}}>
-                <div style={{display:"flex",gap:8,marginBottom:10,alignItems:"center"}}>
-                  <span style={{fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.12em",color:bdgClr}}>{a.topics}</span>
-                  <span style={{fontSize:10,fontWeight:700,color:lc[a.level]||"#888",background:(lc[a.level]||"#888")+"22",padding:"2px 9px",borderRadius:4}}>{ll[a.level]||"Level "+a.level}</span>
-                </div>
-                <h2 style={{fontSize:30,fontWeight:700,lineHeight:1.15,margin:"0 0 12px",fontFamily:"'Playfair Display',serif",color:txtP}}>{a.title}</h2>
-                <p style={{fontSize:14,lineHeight:1.55,color:txtS,margin:"0 0 14px",fontFamily:"'Source Serif 4',serif",display:"-webkit-box",WebkitLineClamp:3,WebkitBoxOrient:"vertical",overflow:"hidden"}}>{a.body.split("\n\n")[0]}</p>
-                <div style={{display:"flex",gap:10,fontSize:11,color:txtM}}>
-                  {a.date&&<span>🗓 {String(a.date).split("T")[0]}</span>}
-                  {vc>0&&<span>📝 {vc} vocab</span>}
-                  {qc>0&&<span>🧠 {qc} quiz</span>}
-                </div>
-              </div>
-            </div>
-          );
-        })()}
+        {filt.length===0&&sheetsStatus!=="loading"&&<div className="news-empty"><strong>No stories found.</strong><span>Coba kategori atau level lain.</span></div>}
 
-        {/* PODCAST BUKU — di tengah agak atas supaya lebih ter-notice */}
-        <div style={{marginBottom:40,paddingBottom:36,borderBottom:"2px solid "+(dk?"#2a2a2a":"#e0dcd5")}}>
-          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:12,marginBottom:14}}>
-            <div>
-              <div style={{fontSize:11,color:txtM,letterSpacing:"0.14em",textTransform:"uppercase"}}>Rekomendasi</div>
-              <h3 style={{fontFamily:"'Playfair Display',serif",fontSize:24,color:txtP,marginTop:2}}>🎧 Podcast Buku</h3>
-            </div>
-            <button onClick={()=>setShowPodcast(true)} style={{padding:"8px 16px",background:"none",border:"1.5px solid "+(dk?"#444":"#d8d3c8"),borderRadius:8,fontSize:12,fontWeight:600,color:dk?"rgba(255,255,255,0.7)":"#555",cursor:"pointer",fontFamily:"'Source Sans 3',sans-serif",whiteSpace:"nowrap"}}>Lebih banyak →</button>
+        {lead&&<section className="news-lead-grid" aria-label="Top stories">
+          <article className="news-lead" onClick={()=>handleArticleClick(lead)}>
+            <div className="news-image"><img src={lead.image} alt=""/></div>
+            <div className="news-story-label"><span>{lead.topics}</span><b>Level {lead.level}</b></div>
+            <h2>{lead.title}</h2>
+            <p>{lead.body.split("\n\n")[0]}</p>
+            <div className="news-meta">{meta(lead)}</div>
+          </article>
+          <div className="news-supporting">
+            {supporting.map(a=><article key={a.id} onClick={()=>handleArticleClick(a)}>
+              <div className="news-supporting-image"><img src={a.image} alt=""/></div>
+              <div className="news-story-label"><span>{a.topics}</span><b>Level {a.level}</b></div>
+              <h3>{a.title}</h3>
+              <div className="news-meta">{meta(a)}</div>
+            </article>)}
           </div>
-          <PodcastSlider dark={dk} onSeeMore={()=>setShowPodcast(true)}/>
-        </div>
+        </section>}
 
-        {filt.slice(1).map((a)=>{
-          const vc=gv(a.id).length,qc=gq(a.id).length;
-          return(
-           <div key={a.id} onClick={()=>handleArticleClick(a)} style={{cursor:"pointer",borderBottom:"1px solid "+(dk?"#2a2a2a":"#eee"),paddingBottom:20,marginBottom:20,display:"flex",gap:18,transition:"opacity .15s"}} onMouseEnter={e=>e.currentTarget.style.opacity="0.8"} onMouseLeave={e=>e.currentTarget.style.opacity="1"}>
-              <div style={{flex:1}}>
-                <div style={{display:"flex",gap:6,marginBottom:5,alignItems:"center",flexWrap:"wrap"}}>
-                  <span style={{fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.1em",color:bdgClr}}>{a.topics}</span>
-                  <span style={{fontSize:10,fontWeight:700,color:lc[a.level]||"#888",background:(lc[a.level]||"#888")+"22",padding:"2px 8px",borderRadius:4}}>{ll[a.level]||"Level "+a.level}</span>
-                </div>
-                <h3 style={{fontSize:20,fontWeight:700,lineHeight:1.25,margin:"4px 0 6px",fontFamily:"'Playfair Display',serif",color:txtP}}>{a.title}</h3>
-                <p style={{fontSize:13,lineHeight:1.45,color:txtS,margin:"0 0 8px",fontFamily:"'Source Serif 4',serif",display:"-webkit-box",WebkitLineClamp:2,WebkitBoxOrient:"vertical",overflow:"hidden"}}>{a.body.split("\n\n")[0]}</p>
-                <div style={{display:"flex",gap:10,fontSize:11,color:txtM}}>
-                  {a.date&&<span>🗓 {String(a.date).split("T")[0]}</span>}
-                  {vc>0&&<span>📝 {vc} vocab</span>}
-                  {qc>0&&<span>🧠 {qc} quiz</span>}
-                </div>
-              </div>
-              {a.image&&<div style={{width:130,minWidth:130,height:95,overflow:"hidden",borderRadius:6,flexShrink:0}}><img src={a.image} alt="" style={{width:"100%",height:"100%",objectFit:"cover",filter:dk?"grayscale(30%) brightness(0.8)":"grayscale(8%)"}}/></div>}
+        {latest.length>0&&<section className="news-latest">
+          <div className="news-section-heading"><span>Latest lessons</span><small>News selected for English learners</small></div>
+          <div className="news-latest-layout">
+            <div className="news-feed">
+              {latest.map(a=>{
+                const vc=gv(a.id).length,qc=gq(a.id).length;
+                return <article key={a.id} onClick={()=>handleArticleClick(a)}>
+                  <div className="news-feed-copy">
+                    <div className="news-story-label"><span>{a.topics}</span><b>Level {a.level}</b></div>
+                    <h3>{a.title}</h3>
+                    <p>{a.body.split("\n\n")[0]}</p>
+                    <div className="news-meta">{meta(a)} · {vc} vocab · {qc} questions</div>
+                  </div>
+                  {a.image&&<div className="news-feed-image"><img src={a.image} alt=""/></div>}
+                </article>;
+              })}
             </div>
-          );
-        })}
-      </div>
+            <aside className="news-guide">
+              <span className="news-aside-kicker">Choose your level</span>
+              <h3>One newsroom, three reading depths.</h3>
+              <dl>
+                <div><dt>01</dt><dd><strong>Level 1</strong><span>Short sentences and explicit facts.</span></dd></div>
+                <div><dt>02</dt><dd><strong>Level 2</strong><span>Cause, effect, and broader context.</span></dd></div>
+                <div><dt>03</dt><dd><strong>Level 3</strong><span>Nuance, inference, and argument.</span></dd></div>
+              </dl>
+            </aside>
+          </div>
+        </section>}
+
+        <section className="news-audio">
+          <div className="news-section-heading"><span>Listen & learn</span><small>Podcast buku pilihan dalam Bahasa Indonesia</small></div>
+          <PodcastSlider dark={dk} onSeeMore={()=>setShowPodcast(true)}/>
+        </section>
+      </main>
       <TranslatePanel dark={dk} apiKey={GOOGLE_API_KEY}/>
     </div>
   );
@@ -1842,6 +1859,76 @@ export default function App(){
       @keyframes skPulse{0%,100%{opacity:1}50%{opacity:.4}}
       *{box-sizing:border-box;margin:0;padding:0}
       ::-webkit-scrollbar{width:5px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:#ccc;border-radius:3px}
+
+      .news-shell{--paper:#f7f4ed;--surface:#fffdf8;--ink:#171814;--muted:#6d7068;--rule:#c9c7bd;--soft-rule:#dfddd4;--accent:#c65d2e;min-height:100vh;background:var(--paper);color:var(--ink);font-family:'DM Sans',sans-serif;transition:background .2s,color .2s}
+      .news-shell.news-dark{--paper:#121310;--surface:#181a16;--ink:#f2efe6;--muted:#a6a79f;--rule:#55574f;--soft-rule:#30322d;--accent:#e77a49}
+      .news-masthead{max-width:1180px;margin:0 auto;padding:34px 28px 30px;border-bottom:4px solid var(--ink)}
+      .news-kicker{font-size:11px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:var(--accent);margin-bottom:22px}
+      .news-masthead-row{display:flex;align-items:flex-end;justify-content:space-between;gap:48px}
+      .news-masthead h1{font-family:'DM Serif Display',serif;font-size:clamp(42px,6vw,76px);font-weight:400;line-height:.92;letter-spacing:-.045em;max-width:760px}
+      .news-masthead p{max-width:620px;margin-top:18px;color:var(--muted);font-family:'Source Serif 4',serif;font-size:16px;line-height:1.55}
+      .news-edition{min-width:180px;padding-left:18px;border-left:1px solid var(--rule);display:flex;flex-direction:column;gap:5px;text-align:left}
+      .news-edition span{font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+      .news-edition strong{font-family:'Source Serif 4',serif;font-size:14px;font-weight:600}
+      .news-topicbar{position:sticky;top:50px;z-index:150;background:color-mix(in srgb,var(--paper) 94%,transparent);backdrop-filter:blur(10px);border-bottom:1px solid var(--rule)}
+      .news-topicbar-inner{max-width:1180px;margin:0 auto;padding:0 28px;display:flex;align-items:center;min-height:48px}
+      .news-topicbar button{appearance:none;background:none;border:0;color:var(--muted);font:600 12px 'DM Sans',sans-serif;padding:16px 14px;cursor:pointer;letter-spacing:.02em}
+      .news-topicbar>div>button:first-child{padding-left:0}
+      .news-topicbar button.active{color:var(--ink);box-shadow:inset 0 -3px var(--accent)}
+      .news-topic-actions{margin-left:auto;display:flex;align-items:center}
+      .news-topic-actions button{padding-inline:10px;text-transform:uppercase;font-size:10px;letter-spacing:.1em}
+      .news-main{max-width:1180px;margin:0 auto;padding:0 28px 80px}
+      .news-filter-row{min-height:64px;display:flex;align-items:center;justify-content:space-between;gap:20px;border-bottom:1px solid var(--rule)}
+      .news-levels{display:flex;align-items:center;gap:2px;flex-wrap:wrap}
+      .news-levels>span{margin-right:12px;color:var(--muted);font-size:10px;font-weight:700;letter-spacing:.12em;text-transform:uppercase}
+      .news-levels button{background:none;border:0;border-bottom:2px solid transparent;color:var(--muted);padding:9px 11px;font:600 12px 'DM Sans',sans-serif;cursor:pointer}
+      .news-levels button.active{border-color:var(--accent);color:var(--ink)}
+      .news-count,.news-meta{color:var(--muted);font-size:10px;line-height:1.5;letter-spacing:.025em}
+      .news-lead-grid{display:grid;grid-template-columns:minmax(0,1.7fr) minmax(270px,.8fr);gap:36px;padding:28px 0 38px;border-bottom:2px solid var(--ink)}
+      .news-lead,.news-supporting article,.news-feed article{cursor:pointer}
+      .news-image{aspect-ratio:16/9;overflow:hidden;background:var(--soft-rule);margin-bottom:18px}
+      .news-image img,.news-supporting-image img,.news-feed-image img{width:100%;height:100%;object-fit:cover;display:block;transition:transform .25s ease,filter .2s}
+      .news-lead:hover img,.news-supporting article:hover img,.news-feed article:hover img{transform:scale(1.018)}
+      .news-dark .news-image img,.news-dark .news-supporting-image img,.news-dark .news-feed-image img{filter:brightness(.78) saturate(.8)}
+      .news-story-label{display:flex;align-items:center;gap:10px;margin-bottom:9px;font-size:10px;font-weight:700;letter-spacing:.11em;text-transform:uppercase}
+      .news-story-label span{color:var(--accent)}
+      .news-story-label b{color:var(--muted);font-weight:600;padding-left:10px;border-left:1px solid var(--rule)}
+      .news-lead h2{font-family:'DM Serif Display',serif;font-size:clamp(32px,4.2vw,54px);font-weight:400;line-height:1.01;letter-spacing:-.025em;margin-bottom:12px;max-width:850px}
+      .news-lead p{font-family:'Source Serif 4',serif;color:var(--muted);font-size:15px;line-height:1.55;margin-bottom:14px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+      .news-supporting{display:grid;grid-template-rows:repeat(2,minmax(0,1fr));gap:26px}
+      .news-supporting article+article{border-top:1px solid var(--rule);padding-top:26px}
+      .news-supporting-image{aspect-ratio:16/8;overflow:hidden;background:var(--soft-rule);margin-bottom:13px}
+      .news-supporting h3,.news-feed h3{font-family:'DM Serif Display',serif;font-weight:400;letter-spacing:-.012em}
+      .news-supporting h3{font-size:24px;line-height:1.08;margin-bottom:10px}
+      .news-section-heading{display:flex;justify-content:space-between;align-items:baseline;gap:16px;padding:26px 0 13px;border-bottom:2px solid var(--ink)}
+      .news-section-heading span{font:400 28px 'DM Serif Display',serif}
+      .news-section-heading small{color:var(--muted);font-size:11px}
+      .news-latest-layout{display:grid;grid-template-columns:minmax(0,1fr) 290px;gap:48px}
+      .news-feed article{display:grid;grid-template-columns:minmax(0,1fr) 190px;gap:24px;padding:22px 0;border-bottom:1px solid var(--soft-rule)}
+      .news-feed h3{font-size:25px;line-height:1.08;margin:0 0 7px}
+      .news-feed p{font-family:'Source Serif 4',serif;color:var(--muted);font-size:13px;line-height:1.5;margin-bottom:10px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+      .news-feed-image{aspect-ratio:4/3;overflow:hidden;background:var(--soft-rule);order:2}
+      .news-guide{margin-top:22px;padding:22px 0;border-top:4px solid var(--accent);align-self:start;position:sticky;top:118px}
+      .news-aside-kicker{color:var(--accent);font-size:10px;font-weight:700;letter-spacing:.14em;text-transform:uppercase}
+      .news-guide h3{font:400 28px/1.05 'DM Serif Display',serif;margin:10px 0 20px}
+      .news-guide dl>div{display:grid;grid-template-columns:34px 1fr;gap:12px;padding:13px 0;border-top:1px solid var(--soft-rule)}
+      .news-guide dt{font:400 16px 'DM Serif Display',serif;color:var(--accent)}
+      .news-guide dd{display:flex;flex-direction:column;gap:3px}
+      .news-guide dd strong{font-size:12px}.news-guide dd span{font:12px/1.4 'Source Serif 4',serif;color:var(--muted)}
+      .news-audio{margin-top:28px;border-bottom:1px solid var(--rule);padding-bottom:34px}
+      .news-empty{padding:80px 0;border-bottom:2px solid var(--ink);display:flex;flex-direction:column;gap:7px;text-align:center;color:var(--muted)}
+      .news-empty strong{font:400 30px 'DM Serif Display',serif;color:var(--ink)}
+      @media(max-width:820px){
+        .news-masthead{padding:28px 20px 24px}.news-masthead-row{display:block}.news-edition{display:none}.news-masthead h1{font-size:49px}.news-masthead p{font-size:14px}
+        .news-topicbar{top:48px;overflow-x:auto}.news-topicbar-inner{padding:0 20px;min-width:max-content}.news-main{padding:0 20px 64px}
+        .news-lead-grid{grid-template-columns:1fr;gap:28px}.news-supporting{grid-template-columns:repeat(2,minmax(0,1fr));grid-template-rows:auto}.news-supporting article+article{border-top:0;padding-top:0;border-left:1px solid var(--rule);padding-left:20px}
+        .news-latest-layout{grid-template-columns:1fr}.news-guide{position:static;margin-top:0}.news-feed article{grid-template-columns:minmax(0,1fr) 150px}.news-section-heading small{display:none}
+      }
+      @media(max-width:560px){
+        .news-masthead h1{font-size:41px}.news-kicker{margin-bottom:16px}.news-filter-row{align-items:flex-start;padding:12px 0}.news-levels>span{width:100%;margin-bottom:2px}.news-count{display:none}
+        .news-supporting{grid-template-columns:1fr}.news-supporting article+article{border-left:0;padding-left:0;border-top:1px solid var(--rule);padding-top:22px}
+        .news-supporting-image{aspect-ratio:16/9}.news-feed article{grid-template-columns:minmax(0,1fr) 104px;gap:15px}.news-feed h3{font-size:21px}.news-feed p{display:none}.news-feed-image{aspect-ratio:1/1}.news-meta{font-size:9px}.news-section-heading span{font-size:25px}
+      }
     `;
     document.head.appendChild(s);
     return()=>document.head.removeChild(s);
@@ -1878,10 +1965,10 @@ export default function App(){
     const [dropdownOpen, setDropdownOpen] = useState(false);
     const isModuleActive = mod === "vocab" || mod === "reading";
     return (
-      <div style={{background:C.navyDark,padding:0,position:"sticky",top:0,zIndex:500}}>
-        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"0 20px",maxWidth:1200,margin:"0 auto"}}>
+      <div style={{background:"#172019",padding:0,position:"sticky",top:0,zIndex:500,borderBottom:"1px solid rgba(255,255,255,.12)"}}>
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"0 24px",maxWidth:1236,margin:"0 auto",minHeight:50}}>
           {/* Home icon logo */}
-          <div onClick={()=>setMod("reading")} title="Beranda" style={{display:"flex",alignItems:"center",padding:"14px 8px",cursor:"pointer",flexShrink:0}}>
+          <div onClick={()=>setMod("reading")} title="Beranda" style={{display:"none",alignItems:"center",padding:"14px 8px",cursor:"pointer",flexShrink:0}}>
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={mod==="reading"?"#fff":"rgba(255,255,255,0.45)"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M3 9.5L12 3l9 6.5V20a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9.5z"/>
               <polyline points="9 21 9 12 15 12 15 21"/>
@@ -1889,8 +1976,8 @@ export default function App(){
           </div>
 
           {/* Brand name */}
-          <div onClick={()=>setMod("reading")} style={{cursor:"pointer",padding:"0 12px",flexShrink:0}}>
-            <span style={{fontFamily:"'DM Serif Display',serif",color:"#fff",fontSize:"1.1rem"}}>Tumbuh<span style={{color:"#F39C12"}}>Academy</span></span>
+          <div onClick={()=>setMod("reading")} style={{cursor:"pointer",padding:"0 22px 0 0",flexShrink:0,borderRight:"1px solid rgba(255,255,255,.18)"}}>
+            <span style={{fontFamily:"'DM Serif Display',serif",color:"#fff",fontSize:"1.15rem",letterSpacing:"-.01em"}}>Tumbuh<span style={{color:"#e77a49"}}>Academy</span></span>
           </div>
 
           {/* Nav */}
@@ -1898,7 +1985,7 @@ export default function App(){
             {/* Mulai Yuk dropdown */}
             <div style={{position:"relative"}} onMouseEnter={()=>setDropdownOpen(true)} onMouseLeave={()=>setDropdownOpen(false)}>
               <button style={{background:"none",border:"none",padding:"16px 18px",color:isModuleActive?"#fff":"rgba(255,255,255,0.5)",fontFamily:"'DM Sans',sans-serif",fontSize:"0.82rem",fontWeight:isModuleActive?700:500,cursor:"pointer",borderBottom:isModuleActive?"3px solid #F39C12":"3px solid transparent",transition:"all .15s",display:"flex",alignItems:"center",gap:6,whiteSpace:"nowrap"}}>
-                Mulai Yuk
+                Learn
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{transition:"transform .2s",transform:dropdownOpen?"rotate(180deg)":"none"}}>
                   <polyline points="6 9 12 15 18 9"/>
                 </svg>
@@ -1908,13 +1995,13 @@ export default function App(){
                   <button onClick={()=>{setMod("vocab");setDropdownOpen(false);}} style={{display:"flex",alignItems:"center",gap:10,width:"100%",background:mod==="vocab"?"rgba(243,156,18,0.12)":"none",border:"none",padding:"12px 18px",color:mod==="vocab"?"#F39C12":"rgba(255,255,255,0.75)",fontFamily:"'DM Sans',sans-serif",fontSize:"0.83rem",cursor:"pointer",textAlign:"left",transition:"background .12s"}}
                     onMouseEnter={e=>e.currentTarget.style.background="rgba(255,255,255,0.07)"}
                     onMouseLeave={e=>e.currentTarget.style.background=mod==="vocab"?"rgba(243,156,18,0.12)":"none"}>
-                    <span style={{fontSize:15}}>📝</span> Latihan Vocab
+                    Vocabulary practice
                   </button>
                   <div style={{height:1,background:"rgba(255,255,255,0.07)",margin:"0 12px"}}/>
                   <button onClick={()=>{setMod("reading");setDropdownOpen(false);}} style={{display:"flex",alignItems:"center",gap:10,width:"100%",background:mod==="reading"?"rgba(243,156,18,0.12)":"none",border:"none",padding:"12px 18px",color:mod==="reading"?"#F39C12":"rgba(255,255,255,0.75)",fontFamily:"'DM Sans',sans-serif",fontSize:"0.83rem",cursor:"pointer",textAlign:"left",transition:"background .12s"}}
                     onMouseEnter={e=>e.currentTarget.style.background="rgba(255,255,255,0.07)"}
                     onMouseLeave={e=>e.currentTarget.style.background=mod==="reading"?"rgba(243,156,18,0.12)":"none"}>
-                    <span style={{fontSize:15}}>📰</span> Ayo Reading!
+                    Reading room
                   </button>
                 </div>
               )}
@@ -1931,9 +2018,9 @@ export default function App(){
                 {currentUser.user_metadata?.name || currentUser.email?.split("@")[0] || "Profil"}
               </button>
             ) : (
-              <button onClick={()=>setMod("login")} style={{background:"#F39C12",border:"none",padding:"8px 18px",color:"#fff",fontFamily:"'DM Sans',sans-serif",fontSize:"0.82rem",fontWeight:600,cursor:"pointer",borderRadius:8,whiteSpace:"nowrap",transition:"all .15s"}}
-                onMouseEnter={e=>e.currentTarget.style.background="#e08e0b"}
-                onMouseLeave={e=>e.currentTarget.style.background="#F39C12"}>
+              <button onClick={()=>setMod("login")} style={{background:"#e77a49",border:"none",padding:"8px 17px",color:"#fff",fontFamily:"'DM Sans',sans-serif",fontSize:"0.75rem",fontWeight:700,cursor:"pointer",borderRadius:2,whiteSpace:"nowrap",transition:"all .15s",textTransform:"uppercase",letterSpacing:".06em"}}
+                onMouseEnter={e=>e.currentTarget.style.background="#c65d2e"}
+                onMouseLeave={e=>e.currentTarget.style.background="#e77a49"}>
                 Masuk
               </button>
             )}

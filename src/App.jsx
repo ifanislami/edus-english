@@ -1021,6 +1021,7 @@ function ReadingQuiz({questions,dark:dk,onAnswersChange,onSubmit,onReset}){
               </button>);
             })}
           </div>
+          {done&&q.explanation&&<div style={{marginTop:12,padding:"11px 14px",borderRadius:8,background:dk?"rgba(201,163,80,.14)":"#f8f3e8",border:"1px solid "+(dk?"rgba(201,163,80,.3)":"#e6d7b6"),color:qTxt,fontSize:13,lineHeight:1.55,fontFamily:"'Source Sans 3',sans-serif"}}><strong>Why?</strong> {q.explanation}</div>}
         </div>
       ))}
       <div style={{display:"flex",gap:12,justifyContent:"flex-end"}}>

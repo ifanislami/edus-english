@@ -60,7 +60,7 @@ const quizzes = quizRows.filter(row => row.Q_code && row.A_code && row.Questions
   question: row.Questions,
   options: [row["Options 1"], row["Options 2"], row["Options 3"], row["Options 4"]].filter(Boolean),
   answer: row["Right Answer"] || null,
-  explanation: null,
+  explanation: row.Explanation || null,
   source_updated_at: new Date().toISOString()
 })).filter(row => articleIds.has(row.article_id));
 

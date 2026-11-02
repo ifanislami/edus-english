@@ -84,8 +84,17 @@ const quizzes = quizRows.filter(row => row.Q_code && row.A_code && row.Questions
   source_updated_at: new Date().toISOString()
 })).filter(row => articleIds.has(row.article_id));
 
+function uniqueById(rows, label) {
+  const records = new Map();
+  for (const row of rows) {
+    if (records.has(row.id)) console.warn(`Duplicate ${label} ID ${row.id}; keeping the later Sheet row.`);
+    records.set(row.id, row);
+  }
+  return [...records.values()];
+}
+
 async function upsert(table, rows) {
-  const { error } = await supabase.from(table).upsert(rows, { onConflict: "id" });
+  const { error } = await supabase.from(table).upsert(uniqueById(rows, table), { onConflict: "id" });
   if (error) throw new Error(`${table}: ${error.message}`);
 }
 

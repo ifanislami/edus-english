@@ -1,0 +1,71 @@
+name: Crawl and publish scheduled news
+
+on:
+  schedule:
+    # All cron expressions use UTC. Jakarta (WIB) is UTC+7.
+    - cron: "53 9 * * 1" # Monday 16:53 WIB — Republika, Level 1
+    - cron: "0 1 * * 2"  # Tuesday 08:00 WIB — ScienceAlert, Level 2
+    - cron: "0 1 * * 3"  # Wednesday 08:00 WIB — Republika, Level 2
+    - cron: "0 1 * * 4"  # Thursday 08:00 WIB — ScienceAlert, Level 1
+    - cron: "0 1 * * 5"  # Friday 08:00 WIB — Republika, Level 1
+    - cron: "0 1 * * 6"  # Saturday 08:00 WIB — DW Indonesia, Level 2
+
+permissions:
+  contents: read
+
+jobs:
+  crawl:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      GOOGLE_SHEET_ID: ${{ secrets.GOOGLE_SHEET_ID }}
+      GOOGLE_SERVICE_ACCOUNT_EMAIL: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_EMAIL }}
+      GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY }}
+      QWEN_API_KEY: ${{ secrets.QWEN_API_KEY }}
+      QWEN_BASE_URL: ${{ secrets.QWEN_BASE_URL }}
+      QWEN_MODEL: qwen3.8-max
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - if: github.event.schedule == '53 9 * * 1'
+        run: node scripts/crawl-scheduled-news.mjs
+        env:
+          CRAWL_SOURCE: Republika
+          CRAWL_LEVEL: "1"
+          CRAWL_FEED: https://www.republika.co.id/rss/
+      - if: github.event.schedule == '0 1 * * 2'
+        run: node scripts/crawl-scheduled-news.mjs
+        env:
+          CRAWL_SOURCE: ScienceAlert
+          CRAWL_LEVEL: "2"
+          CRAWL_FEED: https://www.sciencealert.com/?format=feed&id=1%3Athe-latest&option=com_obrss&task=feed
+      - if: github.event.schedule == '0 1 * * 3'
+        run: node scripts/crawl-scheduled-news.mjs
+        env:
+          CRAWL_SOURCE: Republika
+          CRAWL_LEVEL: "2"
+          CRAWL_FEED: https://www.republika.co.id/rss/
+      - if: github.event.schedule == '0 1 * * 4'
+        run: node scripts/crawl-scheduled-news.mjs
+        env:
+          CRAWL_SOURCE: ScienceAlert
+          CRAWL_LEVEL: "1"
+          CRAWL_FEED: https://www.sciencealert.com/?format=feed&id=1%3Athe-latest&option=com_obrss&task=feed
+      - if: github.event.schedule == '0 1 * * 5'
+        run: node scripts/crawl-scheduled-news.mjs
+        env:
+          CRAWL_SOURCE: Republika
+          CRAWL_LEVEL: "1"
+          CRAWL_FEED: https://www.republika.co.id/rss/
+      - if: github.event.schedule == '0 1 * * 6'
+        run: node scripts/crawl-scheduled-news.mjs
+        env:
+          CRAWL_SOURCE: DW Indonesia
+          CRAWL_LEVEL: "2"
+          CRAWL_FEED: https://rss.dw.com/xml/rss-id-all

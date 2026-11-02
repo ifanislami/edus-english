@@ -8,16 +8,6 @@ const GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY = required("GOOGLE_SERVICE_ACCOUNT_PRIV
 const SUPABASE_URL = required("SUPABASE_URL");
 const SUPABASE_SERVICE_ROLE_KEY = required("SUPABASE_SERVICE_ROLE_KEY");
 
-const SOURCES = {
-  0: { name: "ScienceAlert", level: "2", feed: "https://www.sciencealert.com/?format=feed&id=1%3Athe-latest&option=com_obrss&task=feed" },
-  1: { name: "Republika", level: "1", feed: "https://www.republika.co.id/rss/" },
-  2: { name: "ScienceAlert", level: "2", feed: "https://www.sciencealert.com/?format=feed&id=1%3Athe-latest&option=com_obrss&task=feed" },
-  3: { name: "Republika", level: "1", feed: "https://www.republika.co.id/rss/" },
-  4: { name: "ScienceAlert", level: "2", feed: "https://www.sciencealert.com/?format=feed&id=1%3Athe-latest&option=com_obrss&task=feed" },
-  5: { name: "DW Indonesia", level: "3", feed: "https://rss.dw.com/xml/rss-id-all" },
-  6: { name: "Republika", level: "1", feed: "https://www.republika.co.id/rss/" }
-};
-
 function required(name) {
   const value = process.env[name];
   if (!value) throw new Error(`Missing required secret: ${name}`);
@@ -87,8 +77,11 @@ async function generateLearningArticle(source, item) {
   return article;
 }
 
-const utcDay = new Date().getUTCDay(); // 01:00 UTC is 08:00 WIB on the same calendar day.
-const source = SOURCES[utcDay];
+const source = {
+  name: required("CRAWL_SOURCE"),
+  level: required("CRAWL_LEVEL"),
+  feed: required("CRAWL_FEED")
+};
 const token = await googleAccessToken();
 const articleRows = await sheetValues(token, "articles!A:K");
 const usedUrls = new Set(articleRows.slice(1).map(row => row[9]).filter(Boolean));

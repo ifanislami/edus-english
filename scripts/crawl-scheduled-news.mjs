@@ -69,7 +69,7 @@ async function getFeedItem(source, usedUrls) {
 
 async function generateLearningArticle(source, item) {
   const quizCount = source.level === "1" ? "2 or 3" : "4";
-  const prompt = `Create an original English-learning news adaptation based ONLY on this RSS headline and summary. Do not copy source wording beyond a short title. Return strict JSON with keys: title, topics, body_eng, body_idn, vocabulary, quiz. body_eng must be an original, accurate news summary in English at CEFR Level ${source.level} (${source.level === "1" ? "120-180" : source.level === "2" ? "180-260" : "320-450"} words). body_idn must be a natural Indonesian translation using active, natural Indonesian where possible. vocabulary is an array of 5 objects with word and translation. quiz is an array of exactly ${quizCount} objects with question, options (exactly 4 English strings), answer (one option exactly), explanation (short Indonesian). Every fact must be supported by the RSS item.\n\nSource: ${source.name}\nHeadline: ${item.title}\nRSS summary: ${item.summary}`;
+  const prompt = `Create an original English-learning news adaptation based ONLY on this RSS headline and summary. Do not copy source wording beyond a short title. Return strict JSON with keys: title, topics, body_eng, body_idn, vocabulary, quiz. topics must be one short comma-separated string, never an array. body_eng must be an original, accurate news summary in English at CEFR Level ${source.level} (${source.level === "1" ? "120-180" : source.level === "2" ? "180-260" : "320-450"} words). body_idn must be a natural Indonesian translation using active, natural Indonesian where possible. vocabulary is an array of 5 objects with word and translation. quiz is an array of exactly ${quizCount} objects with question, options (exactly 4 English strings), answer (one option exactly), explanation (short Indonesian). Every fact must be supported by the RSS item.\n\nSource: ${source.name}\nHeadline: ${item.title}\nRSS summary: ${item.summary}`;
   console.log(`Generating Level ${source.level} learning article with Qwen`);
   const response = await fetchWithTimeout(process.env.QWEN_BASE_URL || "https://dashscope-intl.aliyuncs.com/compatible-mode/v1/chat/completions", {
     method: "POST",
@@ -103,18 +103,19 @@ if (alreadyPublishedToday) {
 const usedUrls = new Set(articleRows.slice(1).map(row => row[9]).filter(Boolean));
 const item = await getFeedItem(source, usedUrls);
 const draft = await generateLearningArticle(source, item);
+const topics = (Array.isArray(draft.topics) ? draft.topics.join(", ") : String(draft.topics || "")).trim() || "News";
 const usedIds = articleRows.slice(1).map(row => Number(String(row[0] || "").replace(/^A/, ""))).filter(Number.isFinite);
 const articleId = `A${Math.max(0, ...usedIds) + 1}`;
 const words = draft.body_eng.trim().split(/\s+/).filter(Boolean).length;
 
-await appendRows(token, "articles!A:K", [[articleId, words, draft.title, draft.topics || "News", draft.body_eng, draft.body_idn, "", source.level, source.name, item.url, date]]);
+await appendRows(token, "articles!A:K", [[articleId, words, draft.title, topics, draft.body_eng, draft.body_idn, "", source.level, source.name, item.url, date]]);
 await appendRows(token, "vocab!A:C", draft.vocabulary.slice(0, 5).map((entry, index) => [`${articleId}_V${index + 1}`, entry.word, entry.translation]));
 await appendRows(token, "quiz_article!A:I", draft.quiz.map((entry, index) => [`${articleId}_Q${index + 1}`, articleId, entry.question, ...entry.options, entry.answer, entry.explanation]));
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, { auth: { persistSession: false } });
 const sourceUpdatedAt = new Date().toISOString();
 console.log("Publishing article to Supabase");
-const { error: articleError } = await supabase.from("articles").upsert({ id: articleId, word_count: words, title: draft.title, topics: draft.topics || "News", body_eng: draft.body_eng, body_idn: draft.body_idn, image_url: null, level: source.level, writers: source.name, source: item.url, published_on: date, source_updated_at: sourceUpdatedAt });
+const { error: articleError } = await supabase.from("articles").upsert({ id: articleId, word_count: words, title: draft.title, topics, body_eng: draft.body_eng, body_idn: draft.body_idn, image_url: null, level: source.level, writers: source.name, source: item.url, published_on: date, source_updated_at: sourceUpdatedAt });
 if (articleError) throw articleError;
 const { error: vocabError } = await supabase.from("article_vocabulary").upsert(draft.vocabulary.slice(0, 5).map((entry, index) => ({ id: `${articleId}_V${index + 1}`, article_id: articleId, word: entry.word, translation: entry.translation, source_updated_at: sourceUpdatedAt })));
 if (vocabError) throw vocabError;

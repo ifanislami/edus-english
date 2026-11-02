@@ -1326,6 +1326,16 @@ function readingMinutes(wordCount, body=""){
   return Math.max(1,Math.ceil(words/180));
 }
 
+function articleIdFromPath(pathname=window.location.pathname){
+  const match=pathname.match(/^\/article\/([^/]+)\/?$/);
+  if(!match)return null;
+  try{return decodeURIComponent(match[1]);}catch{return null;}
+}
+
+function articlePath(articleId){
+  return `/article/${encodeURIComponent(articleId)}`;
+}
+
 function ReadingModule({ supabase, currentUser }){
   console.log("🔵 ReadingModule mounted");
   console.log("supabase:", supabase);
@@ -1365,7 +1375,32 @@ function ReadingModule({ supabase, currentUser }){
 
   const handleArticleClick = (a) => {
     setSelArt(a); setReadingAns({}); setQuizSubmitted(false); setReadingResult(null);
+    window.history.pushState({articleId:a.id}, "", articlePath(a.id));
   };
+
+  const closeArticle = async () => {
+    await saveReadingProgress();
+    setSelArt(null);
+    setArtTab("read");
+    window.history.pushState({}, "", "/");
+  };
+
+  // A reading link is shareable and survives refresh. Wait for the content data
+  // before resolving the article ID because the page can start from cache or API.
+  useEffect(() => {
+    const restoreArticleFromUrl = () => {
+      const articleId=articleIdFromPath();
+      if(!articleId){setSelArt(null);return;}
+      const article=articles.find(a=>a.id===articleId);
+      if(article){
+        setSelArt(article);
+        setReadingAns({}); setQuizSubmitted(false); setReadingResult(null); setArtTab("read");
+      }
+    };
+    restoreArticleFromUrl();
+    window.addEventListener("popstate",restoreArticleFromUrl);
+    return()=>window.removeEventListener("popstate",restoreArticleFromUrl);
+  },[articles]);
   // Read the published Supabase copy first. Google Sheets remains the editor and
   // only acts as a compatibility fallback while a deployment is being migrated.
   useEffect(()=>{
@@ -1686,11 +1721,7 @@ function ReadingModule({ supabase, currentUser }){
         {artTab==="read"&&<ReadingProgressBar dark={dk}/>}
         <div style={{position:"sticky",top:48,zIndex:100,background:dk?"rgba(18,19,16,0.97)":"rgba(247,244,237,0.96)",backdropFilter:"blur(10px)",borderBottom:`1px solid ${bdrC}`,padding:"9px 0"}}>
           <div style={{maxWidth:860,margin:"0 auto",padding:"0 24px",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
-           <button onClick={async ()=>{
-  await saveReadingProgress();
-  setSelArt(null);
-  setArtTab("read");
-}} style={{background:"none",border:"none",cursor:"pointer",fontSize:12,fontWeight:700,color:dk?"#c4c6bd":"#4f534b",fontFamily:"'DM Sans',sans-serif",letterSpacing:".04em",textTransform:"uppercase"}}>← All stories</button>
+           <button onClick={closeArticle} style={{background:"none",border:"none",cursor:"pointer",fontSize:12,fontWeight:700,color:dk?"#c4c6bd":"#4f534b",fontFamily:"'DM Sans',sans-serif",letterSpacing:".04em",textTransform:"uppercase"}}>← All stories</button>
             <div style={{display:"flex",gap:8,alignItems:"center"}}>
               <button onClick={()=>setDark(d=>!d)} style={{padding:"6px 9px",background:"transparent",border:`1px solid ${dk?"#444":"#cbc7bc"}`,borderRadius:2,fontSize:10,cursor:"pointer",color:dk?"#e8c87a":"#55594f",fontWeight:700,fontFamily:"'DM Sans',sans-serif",textTransform:"uppercase",letterSpacing:".08em"}}>{dk?"Light":"Dark"}</button>
               {selArt.body_idn&&<div style={{display:"flex",background:"transparent",border:`1px solid ${dk?"#444":"#cbc7bc"}`,borderRadius:2,padding:0,gap:0}}>

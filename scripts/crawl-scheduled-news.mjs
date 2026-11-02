@@ -84,12 +84,21 @@ const source = {
 };
 const token = await googleAccessToken();
 const articleRows = await sheetValues(token, "articles!A:K");
+const date = new Date().toISOString().slice(0, 10);
+const alreadyPublishedToday = articleRows.slice(1).some(row =>
+  String(row[7] || "") === source.level &&
+  String(row[8] || "") === source.name &&
+  String(row[10] || "") === date
+);
+if (alreadyPublishedToday) {
+  console.log(JSON.stringify({ ok: true, skipped: "already-published-today", source: source.name, level: source.level, date }));
+  process.exit(0);
+}
 const usedUrls = new Set(articleRows.slice(1).map(row => row[9]).filter(Boolean));
 const item = await getFeedItem(source, usedUrls);
 const draft = await generateLearningArticle(source, item);
 const usedIds = articleRows.slice(1).map(row => Number(String(row[0] || "").replace(/^A/, ""))).filter(Number.isFinite);
 const articleId = `A${Math.max(0, ...usedIds) + 1}`;
-const date = new Date().toISOString().slice(0, 10);
 const words = draft.body_eng.trim().split(/\s+/).filter(Boolean).length;
 
 await appendRows(token, "articles!A:K", [[articleId, words, draft.title, draft.topics || "News", draft.body_eng, draft.body_idn, "", source.level, source.name, item.url, date]]);

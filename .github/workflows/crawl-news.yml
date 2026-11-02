@@ -1,9 +1,26 @@
 name: Crawl and publish scheduled news
 
 on:
+  workflow_dispatch:
+    inputs:
+      crawl:
+        description: "Crawler to run"
+        required: true
+        type: choice
+        default: republika-l1
+        options:
+          - republika-l1
+          - sciencealert-l2
+          - republika-l2
+          - sciencealert-l1
+          - dw-l2
   schedule:
     # All cron expressions use UTC. Jakarta (WIB) is UTC+7.
     - cron: "46 10 * * 1" # Monday 17:46 WIB — Republika, Level 1
+    # Catch-up attempts every 10 minutes through Monday night (WIB).
+    # The crawler exits safely after the day's Republika Level 1 article exists.
+    - cron: "56 10 * * 1"
+    - cron: "6,16,26,36,46,56 11-16 * * 1"
     - cron: "0 1 * * 2"  # Tuesday 08:00 WIB — ScienceAlert, Level 2
     - cron: "0 1 * * 3"  # Wednesday 08:00 WIB — Republika, Level 2
     - cron: "0 1 * * 4"  # Thursday 08:00 WIB — ScienceAlert, Level 1
@@ -33,25 +50,25 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - if: github.event.schedule == '46 10 * * 1'
+      - if: github.event.schedule == '46 10 * * 1' || github.event.schedule == '56 10 * * 1' || github.event.schedule == '6,16,26,36,46,56 11-16 * * 1' || (github.event_name == 'workflow_dispatch' && inputs.crawl == 'republika-l1')
         run: node scripts/crawl-scheduled-news.mjs
         env:
           CRAWL_SOURCE: Republika
           CRAWL_LEVEL: "1"
           CRAWL_FEED: https://www.republika.co.id/rss/
-      - if: github.event.schedule == '0 1 * * 2'
+      - if: github.event.schedule == '0 1 * * 2' || (github.event_name == 'workflow_dispatch' && inputs.crawl == 'sciencealert-l2')
         run: node scripts/crawl-scheduled-news.mjs
         env:
           CRAWL_SOURCE: ScienceAlert
           CRAWL_LEVEL: "2"
           CRAWL_FEED: https://www.sciencealert.com/?format=feed&id=1%3Athe-latest&option=com_obrss&task=feed
-      - if: github.event.schedule == '0 1 * * 3'
+      - if: github.event.schedule == '0 1 * * 3' || (github.event_name == 'workflow_dispatch' && inputs.crawl == 'republika-l2')
         run: node scripts/crawl-scheduled-news.mjs
         env:
           CRAWL_SOURCE: Republika
           CRAWL_LEVEL: "2"
           CRAWL_FEED: https://www.republika.co.id/rss/
-      - if: github.event.schedule == '0 1 * * 4'
+      - if: github.event.schedule == '0 1 * * 4' || (github.event_name == 'workflow_dispatch' && inputs.crawl == 'sciencealert-l1')
         run: node scripts/crawl-scheduled-news.mjs
         env:
           CRAWL_SOURCE: ScienceAlert
@@ -63,7 +80,7 @@ jobs:
           CRAWL_SOURCE: Republika
           CRAWL_LEVEL: "1"
           CRAWL_FEED: https://www.republika.co.id/rss/
-      - if: github.event.schedule == '0 1 * * 6'
+      - if: github.event.schedule == '0 1 * * 6' || (github.event_name == 'workflow_dispatch' && inputs.crawl == 'dw-l2')
         run: node scripts/crawl-scheduled-news.mjs
         env:
           CRAWL_SOURCE: DW Indonesia

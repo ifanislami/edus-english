@@ -1,19 +1,39 @@
+import crypto from "node:crypto";
 import { createClient } from "@supabase/supabase-js";
 
 const sheetId = process.env.GOOGLE_SHEET_ID || process.env.VITE_SHEETS_ID;
 const googleApiKey = process.env.GOOGLE_SHEETS_API_KEY || process.env.VITE_GOOGLE_API_KEY;
+const serviceAccountEmail = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
+const serviceAccountPrivateKey = process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY?.replace(/\\n/g, "\n");
 const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
 const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-for (const [name, value] of Object.entries({ sheetId, googleApiKey, supabaseUrl, serviceRoleKey })) {
+for (const [name, value] of Object.entries({ sheetId, supabaseUrl, serviceRoleKey })) {
   if (!value) throw new Error(`Missing ${name}. See .env.example for the sync variables.`);
+}
+if (!googleApiKey && !(serviceAccountEmail && serviceAccountPrivateKey)) {
+  throw new Error("Provide GOOGLE_SHEETS_API_KEY or both Google Service Account secrets.");
 }
 
 const supabase = createClient(supabaseUrl, serviceRoleKey, { auth: { persistSession: false } });
 
+const base64url = value => Buffer.from(value).toString("base64url");
+let accessToken;
+async function getAccessToken() {
+  if (accessToken || !serviceAccountEmail || !serviceAccountPrivateKey) return accessToken;
+  const now = Math.floor(Date.now() / 1000);
+  const unsigned = `${base64url(JSON.stringify({ alg: "RS256", typ: "JWT" }))}.${base64url(JSON.stringify({ iss: serviceAccountEmail, scope: "https://www.googleapis.com/auth/spreadsheets.readonly", aud: "https://oauth2.googleapis.com/token", iat: now, exp: now + 3600 }))}`;
+  const signature = crypto.sign("RSA-SHA256", Buffer.from(unsigned), serviceAccountPrivateKey).toString("base64url");
+  const response = await fetch("https://oauth2.googleapis.com/token", { method: "POST", headers: { "content-type": "application/x-www-form-urlencoded" }, body: new URLSearchParams({ grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer", assertion: `${unsigned}.${signature}` }) });
+  if (!response.ok) throw new Error(`Google service-account authentication failed: ${response.status} ${await response.text()}`);
+  accessToken = (await response.json()).access_token;
+  return accessToken;
+}
+
 async function getRows(tab) {
-  const endpoint = `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/${encodeURIComponent(tab)}?valueRenderOption=FORMATTED_VALUE&key=${googleApiKey}`;
-  const response = await fetch(endpoint);
+  const token = await getAccessToken();
+  const endpoint = `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/${encodeURIComponent(tab)}?valueRenderOption=FORMATTED_VALUE${token ? "" : `&key=${googleApiKey}`}`;
+  const response = await fetch(endpoint, { headers: token ? { authorization: `Bearer ${token}` } : {} });
   if (!response.ok) throw new Error(`Could not read ${tab}: ${response.status} ${await response.text()}`);
   const { values = [] } = await response.json();
   const [headers = [], ...data] = values;

@@ -88,15 +88,6 @@ const source = {
   level: required("CRAWL_LEVEL"),
   feed: required("CRAWL_FEED")
 };
-const jakartaDate = () => {
-  const parts = new Intl.DateTimeFormat("en", { timeZone: "Asia/Jakarta", year: "numeric", month: "2-digit", day: "2-digit" }).formatToParts();
-  const values = Object.fromEntries(parts.filter(part => part.type !== "literal").map(part => [part.type, part.value]));
-  return `${values.year}-${values.month}-${values.day}`;
-};
-if (process.env.CRAWL_ONLY_DATE && jakartaDate() !== process.env.CRAWL_ONLY_DATE) {
-  console.log(JSON.stringify({ ok: true, skipped: "one-time-recovery-expired", expectedDate: process.env.CRAWL_ONLY_DATE, jakartaDate: jakartaDate() }));
-  process.exit(0);
-}
 const token = await googleAccessToken();
 const articleRows = await sheetValues(token, "articles!A:K");
 const date = new Date().toISOString().slice(0, 10);

@@ -1062,12 +1062,14 @@ function ReadingQuiz({questions,dark:dk,onAnswersChange,onSubmit,onReset}){
 // ═══════════════════════════════════════
 // ADD ARTICLE WIZARD
 // ═══════════════════════════════════════
-function AddArticleWizard({onCancel,onSave,existingIds}){
+function AddArticleWizard({onCancel,onSave,existingIds,supabase}){
   const [step,setStep]=useState(1);
   const [form,setForm]=useState({title:"",topics:"Science",level:"1",body:"",image:"",writers:"EduEnglish Admin",source:"Admin",published_on:new Date().toISOString().slice(0,10)});
   const [vList,setVList]=useState([{word:"",translation:"",pos:"Noun",context:""}]);
   const [qCount,setQCount]=useState(4);
   const [qList,setQList]=useState([]);
+  const [adjust,setAdjust]=useState(true);
+  const [processing,setProcessing]=useState(false);
   const newId=useMemo(()=>{const nums=existingIds.map(id=>parseInt(id.replace(/\D/g,''))||0);return"A"+(Math.max(0,...nums)+1);},[existingIds]);
   const sI={width:"100%",padding:"10px 14px",border:"1.5px solid #d8d3c8",borderRadius:8,fontSize:14,fontFamily:"'Source Sans 3',sans-serif",background:"#fff",outline:"none"};
   const sT={...sI,minHeight:180,resize:"vertical",lineHeight:1.7,fontFamily:"'Source Serif 4',serif"};
@@ -1094,6 +1096,7 @@ function AddArticleWizard({onCancel,onSave,existingIds}){
   const ok1=form.title.trim()&&form.body.trim();
   const ok2=vList.every(v=>v.word.trim()&&v.translation.trim());
   const initQ=()=>{setQList(Array.from({length:qCount},()=>({question:"",options:["","","",""],answer:""})));setStep(4);};
+  const processWithAI=async()=>{if(!supabase||!form.body.trim())return;setProcessing(true);try{const {data,error}=await supabase.functions.invoke("admin-articles",{body:{operation:"process",adjust,article:{body:form.body,level:form.level}}});if(error)throw error;setForm(p=>({...p,body:data.body_eng}));setVList(data.vocabulary||[]);setQList(data.quiz||[]);setQCount((data.quiz||[]).length||3);setStep(4);}catch(error){alert(error.message||"AI gagal memproses artikel.");}finally{setProcessing(false);}};
   const uQ=(i,f,v)=>setQList(p=>p.map((q,j)=>j===i?{...q,[f]:v}:q));
   const uQO=(qi,oi,v)=>setQList(p=>p.map((q,j)=>j===qi?{...q,options:q.options.map((o,k)=>k===oi?v:o)}:q));
   const okSave=qList.length>0&&qList.every(q=>q.question.trim()&&q.options.every(o=>o.trim())&&q.answer.trim());
@@ -1129,7 +1132,7 @@ function AddArticleWizard({onCancel,onSave,existingIds}){
           <span>{guide.description}</span>
           {form.level!=="3"&&form.body.trim()&&<div style={{marginTop:8,fontSize:12,color:"#8b7355"}}>Terdeteksi {guideMatches.length} kata dari daftar panduan dalam teks. Pilih yang benar-benar penting sebagai target vocabulary di langkah berikutnya.</div>}
         </div>
-        <div style={{display:"flex",justifyContent:"flex-end",gap:10}}><button onClick={onCancel} style={bS}>Cancel</button><button onClick={()=>setStep(2)} disabled={!ok1} style={{...bP,opacity:ok1?1:0.4,cursor:ok1?"pointer":"not-allowed"}}>Next: Vocabulary →</button></div>
+        <div style={{display:"flex",justifyContent:"space-between",gap:10,alignItems:"center",flexWrap:"wrap"}}><label style={{fontSize:12,color:"#555",display:"flex",gap:7,alignItems:"center"}}><input type="checkbox" checked={adjust} onChange={e=>setAdjust(e.target.checked)}/> Sesuaikan body ke Level {form.level} dengan AI</label><div style={{display:"flex",gap:10}}><button onClick={onCancel} style={bS}>Cancel</button><button type="button" onClick={processWithAI} disabled={!ok1||processing} style={{...bP,background:"#2d6a4f",opacity:ok1&&!processing?1:.4}}>{processing?"Memproses AI...":"✨ Proses dengan AI"}</button><button onClick={()=>setStep(2)} disabled={!ok1} style={{...bP,opacity:ok1?1:0.4,cursor:ok1?"pointer":"not-allowed"}}>Manual →</button></div></div>
       </div>}
       {step===2&&<div>
         <p style={{fontSize:14,color:"#666",marginBottom:12}}>{form.level==="1"?"Pilih vocabulary target dari Common Words yang muncul di artikel.":form.level==="2"?"Pilih vocabulary penting dari artikel. AWL tersaring hanya digunakan bila kata tersebut benar-benar relevan.":"Pilih vocabulary penting dari artikel tanpa pembatasan daftar."}</p>
@@ -1636,7 +1639,7 @@ function ReadingModule({ supabase, currentUser, isAdmin, initialAdmin=false }){
       <div style={{position:"sticky",top:48,zIndex:100,background:"rgba(250,247,242,0.95)",backdropFilter:"blur(10px)",borderBottom:"1px solid #e0dcd5",padding:"12px 0"}}>
         <div style={{maxWidth:780,margin:"0 auto",padding:"0 24px"}}><button onClick={()=>setShowAdd(false)} style={{background:"none",border:"none",cursor:"pointer",fontSize:14,fontWeight:600,color:"#8b7355",fontFamily:"'Source Sans 3',sans-serif"}}>← Back to Admin</button></div>
       </div>
-      <AddArticleWizard onCancel={()=>setShowAdd(false)} onSave={onAddSave} existingIds={articles.map(a=>a.id)}/>
+      <AddArticleWizard onCancel={()=>setShowAdd(false)} onSave={onAddSave} existingIds={articles.map(a=>a.id)} supabase={supabase}/>
     </div>
   );
 

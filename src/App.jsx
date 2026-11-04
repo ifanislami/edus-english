@@ -7,6 +7,7 @@ import { createClient } from "@supabase/supabase-js";
 // Konfigurasi proyek EduEnglish. Jangan simpan key nyata di source code.
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || "";
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || "";
+const ADMIN_EMAIL = "ifan.islami16@gmail.com";
 const supabase = SUPABASE_URL && SUPABASE_ANON_KEY ? createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
 // ─── CONFIGURATION ──────────────────────────────────────────────────────────
 // Isi melalui .env lokal atau environment variable platform deployment.
@@ -863,14 +864,27 @@ function HighlightedText({content,vocabList,dark:dk}){
 
   const tc=dk?"#d4cfc8":"#2a2a2a";
   const dc=dk?"#f0ece4":"#1a1a1a";
+  const inlineImage=(paragraph)=>{
+    const match=paragraph.trim().match(/^\[IMAGE:\s*(.*?)\s*\|\s*(.*?)\s*\|\s*(.*?)\s*\]$/i);
+    if(!match)return null;
+    const [,url,caption,credit]=match;
+    return url.trim()?{url:url.trim(),caption:caption.trim(),credit:credit.trim()}:null;
+  };
   return(
     <div onClick={()=>setTip(null)}>
-    {content.split(/\n\n+|\n/).filter(p=>p.trim().length>0).map((p,i)=>(
+    {content.split(/\n\n+|\n/).filter(p=>p.trim().length>0).map((p,i)=>{
+      const image=inlineImage(p);
+      if(image)return <figure key={i} style={{margin:"26px 0 28px"}}>
+        <img src={image.url} alt={image.caption||"Illustration for this article"} onError={handleArticleImageFallback} style={{display:"block",width:"100%",maxHeight:460,objectFit:"cover",borderRadius:10}}/>
+        {(image.caption||image.credit)&&<figcaption style={{marginTop:8,fontSize:12,lineHeight:1.5,color:dk?"rgba(240,236,228,.55)":"#777"}}>{image.caption}{image.credit&&<span> · {image.credit}</span>}</figcaption>}
+      </figure>;
+      return (
         <p key={i} style={{fontSize:18,lineHeight:1.6,marginBottom:18,color:tc,fontFamily:"'Source Serif 4','Georgia',serif",letterSpacing:"0.015em",transition:"color .3s"}}>
           {i===0&&<span style={{float:"left",fontSize:58,lineHeight:"48px",paddingRight:8,paddingTop:6,fontFamily:"'Playfair Display',serif",fontWeight:900,color:dc,transition:"color .3s"}}>{p.charAt(0)}</span>}
           {renderP(i===0?p.slice(1):p,i)}
         </p>
-      ))}
+      );
+    })}
       {tip&&<VocabTooltip word={tip.word} data={tip.data} position={tip.position} onClose={()=>setTip(null)}/>}
     </div>
   );
@@ -1081,6 +1095,7 @@ function AddArticleWizard({onCancel,onSave,existingIds}){
   const uQ=(i,f,v)=>setQList(p=>p.map((q,j)=>j===i?{...q,[f]:v}:q));
   const uQO=(qi,oi,v)=>setQList(p=>p.map((q,j)=>j===qi?{...q,options:q.options.map((o,k)=>k===oi?v:o)}:q));
   const okSave=qList.length>0&&qList.every(q=>q.question.trim()&&q.options.every(o=>o.trim())&&q.answer.trim());
+  const insertImageBlock=()=>setForm(p=>({...p,body:`${p.body.trimEnd()}${p.body.trim()?"\n\n":""}[IMAGE: https://image-url.com/photo.jpg | Tulis caption gambar | Sumber gambar]\n\n`}));
   const doSave=()=>{
     const art={id:newId,title:form.title.trim(),topics:form.topics,level:form.level,body:form.body.trim(),image:form.image.trim()||FALLBACK_ARTICLE_IMAGE};
     const vocs=vList.filter(v=>v.word.trim()).map((v,i)=>({aid:newId,vid:newId+"_V"+(i+1),word:v.word.trim(),translation:v.translation.trim(),pos:v.pos,context:v.context.trim()}));
@@ -1102,7 +1117,7 @@ function AddArticleWizard({onCancel,onSave,existingIds}){
           <div><label style={lS}>Level</label><select style={{...sS,width:"100%"}} value={form.level} onChange={e=>setForm(p=>({...p,level:e.target.value}))}>{[["1","Level 1 — A2–B1"],["2","Level 2 — B2"],["3","Level 3 — C1–C2"]].map(([v,l])=><option key={v} value={v}>{l}</option>)}</select></div>
         </div>
         <div><label style={lS}>Image URL (optional)</label><input style={sI} value={form.image} onChange={e=>setForm(p=>({...p,image:e.target.value}))} placeholder="https://..."/></div>
-        <div><label style={lS}>Body Text *</label><textarea style={sT} value={form.body} onChange={e=>setForm(p=>({...p,body:e.target.value}))} placeholder="Paste full article. Separate paragraphs with blank lines."/><div style={{fontSize:11,color:"#aaa",marginTop:4}}>{form.body.split(/\s+/).filter(Boolean).length} words</div></div>
+        <div><label style={lS}>Body Text *</label><textarea style={sT} value={form.body} onChange={e=>setForm(p=>({...p,body:e.target.value}))} placeholder="Paste full article. Separate paragraphs with blank lines."/><div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:12,marginTop:7}}><span style={{fontSize:11,color:"#aaa"}}>{form.body.split(/\s+/).filter(Boolean).length} words</span><button type="button" onClick={insertImageBlock} style={{padding:"6px 10px",border:"1px solid #d8d3c8",borderRadius:6,background:"#fff",color:"#5d5144",fontSize:12,fontWeight:700,cursor:"pointer"}}>🖼 Sisipkan gambar ke body</button></div><div style={{fontSize:11,color:"#8b7355",lineHeight:1.5,marginTop:8}}>Blok gambar dapat dipindahkan di antara paragraf. Isi URL, caption, dan sumbernya: <code>[IMAGE: URL | Caption | Sumber]</code>.</div></div>
         <div style={{background:"#f7f4ed",border:"1px solid #e8e2d8",borderRadius:10,padding:"14px 16px",fontSize:13,color:"#5d5144"}}>
           <strong style={{color:"#1a1a1a"}}>{guide.title}</strong> · target {guide.length}<br/>
           <span>{guide.description}</span>
@@ -1336,7 +1351,7 @@ function articlePath(articleId){
   return `/article/${encodeURIComponent(articleId)}`;
 }
 
-function ReadingModule({ supabase, currentUser }){
+function ReadingModule({ supabase, currentUser, isAdmin, initialAdmin=false }){
   console.log("🔵 ReadingModule mounted");
   console.log("supabase:", supabase);
   console.log("currentUser:", currentUser);
@@ -1347,7 +1362,7 @@ function ReadingModule({ supabase, currentUser }){
   const [selArt,setSelArt]=useState(null);
   const [artTab,setArtTab]=useState("read");
   const [dark,setDark]=useState(false);
-  const [showAdmin,setShowAdmin]=useState(false);
+  const [showAdmin,setShowAdmin]=useState(initialAdmin);
   const [showAdd,setShowAdd]=useState(false);
   const [checked,setChecked]=useState(new Set());
   const [editing,setEditing]=useState(null);
@@ -1807,7 +1822,7 @@ function ReadingModule({ supabase, currentUser }){
           <TopikDropdown cat={cat} setCat={setCat} dark={dk}/>
           <div className="news-topic-actions">
             <button onClick={()=>setDark(d=>!d)} aria-label="Ganti tema">{dk?"Light":"Dark"}</button>
-            {currentUser?.role==="admin"&&<button onClick={()=>setShowAdmin(true)}>Admin</button>}
+            {isAdmin&&<button onClick={()=>setShowAdmin(true)}>Admin</button>}
           </div>
         </div>
       </nav>
@@ -1890,6 +1905,8 @@ export default function App(){
   const [currentUser, setCurrentUser] = useState(null);
   const [mod, setMod] = useState("reading"); // vocab | reading | login | profile
   const [sessionLoaded, setSessionLoaded] = useState(false);
+  const isAdmin = currentUser?.email?.toLowerCase() === ADMIN_EMAIL;
+  const requestedAdmin = window.location.pathname === "/admin" || window.location.pathname === "/admin/";
 
   useEffect(()=>{
     const s=document.createElement("style");
@@ -2088,12 +2105,20 @@ export default function App(){
     );
   }
 
+  if (requestedAdmin && !currentUser) {
+    return <div><Header /><LoginPage onLoginSuccess={(u) => { setCurrentUser(u); }} supabase={supabase} /></div>;
+  }
+
+  if (requestedAdmin && !isAdmin) {
+    return <div><Header /><div style={{maxWidth:560,margin:"72px auto",padding:"0 24px",fontFamily:"'DM Sans',sans-serif"}}><h1 style={{fontFamily:"'DM Serif Display',serif",fontSize:34,marginBottom:12}}>Akses ditolak</h1><p style={{color:"#666",lineHeight:1.6}}>Halaman ini hanya tersedia untuk administrator EduEnglish.</p></div></div>;
+  }
+
   // Semua halaman utama — terbuka untuk semua, login tidak wajib
   return (
     <div>
       <Header />
       {mod === "vocab"    && <VocabModule supabase={supabase} currentUser={currentUser} />}
-      {mod === "reading"  && <ReadingModule supabase={supabase} currentUser={currentUser} />}
+      {mod === "reading"  && <ReadingModule supabase={supabase} currentUser={currentUser} isAdmin={isAdmin} initialAdmin={requestedAdmin} />}
       {mod === "profile"  && currentUser && <UserProfile user={currentUser} onLogout={handleLogout} supabase={supabase} />}
     </div>
   );

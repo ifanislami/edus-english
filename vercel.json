@@ -3,6 +3,7 @@
   "outputDirectory": "dist",
   "installCommand": "rm -rf node_modules && npm install",
   "rewrites": [
+    { "source": "/admin", "destination": "/index.html" },
     { "source": "/article/:path*", "destination": "/index.html" }
   ]
 }

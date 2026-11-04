@@ -7,7 +7,7 @@ import { createClient } from "@supabase/supabase-js";
 // Konfigurasi proyek EduEnglish. Jangan simpan key nyata di source code.
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || "";
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || "";
-const ADMIN_EMAIL = "ifan.islami16@gmail.com";
+const ADMIN_EMAIL = "tes@tes.com";
 const supabase = SUPABASE_URL && SUPABASE_ANON_KEY ? createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
 // ─── CONFIGURATION ──────────────────────────────────────────────────────────
 // Isi melalui .env lokal atau environment variable platform deployment.

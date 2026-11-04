@@ -56,6 +56,7 @@ function LevelDistribution({ rows, scoreMode = false }) {
 export function UserProfile({ user, onLogout, supabase }) {
   const [vocab, setVocab] = useState([]);
   const [reading, setReading] = useState([]);
+  const [savedVocabulary, setSavedVocabulary] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -64,14 +65,15 @@ export function UserProfile({ user, onLogout, supabase }) {
     const load = async () => {
       if (!supabase || !user) return;
       setLoading(true); setError("");
-      const [vocabResult, readingResult] = await Promise.all([
+      const [vocabResult, readingResult, savedResult] = await Promise.all([
         supabase.from("vocab_scores").select("score,total,quiz_type,category,mode,completed_at").eq("user_id", user.id).order("completed_at", { ascending: false }),
         supabase.from("reading_progress").select("article_id,article_level,vocab_completed,quiz_answered,quiz_score,quiz_total,completed_at").eq("user_id", user.id).order("completed_at", { ascending: false }),
+        supabase.from("user_saved_vocabulary").select("id,word,translation,pos,context,created_at").eq("user_id", user.id).order("created_at", { ascending: false }),
       ]);
       if (!active) return;
-      const loadError = vocabResult.error || readingResult.error;
+      const loadError = vocabResult.error || readingResult.error || savedResult.error;
       if (loadError) setError(loadError.message);
-      else { setVocab(vocabResult.data || []); setReading(readingResult.data || []); }
+      else { setVocab(vocabResult.data || []); setReading(readingResult.data || []); setSavedVocabulary(savedResult.data || []); }
       setLoading(false);
     };
     load();
@@ -98,12 +100,18 @@ export function UserProfile({ user, onLogout, supabase }) {
       {loading ? <div style={{ minHeight: 350, display: "grid", placeItems: "center", color: "#858c98" }}>Memuat statistik...</div> : <>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(190px,1fr))", gap: 14, marginBottom: 20 }}>
           <Card value={vocab.length} label="Latihan Vocab" note={`${chartData.common.length} Common · ${chartData.awl.length} AWL terbaru`} />
+          <Card value={savedVocabulary.length} label="My Saved Vocabulary" note="Kata dari artikel yang disimpan" />
           <Card value={pct(vocabAverage)} label="Rata-rata Vocab" note="Seluruh latihan tersimpan" />
           <Card value={reading.length} label="Artikel Dibaca" note="Quiz artikel telah diselesaikan" />
           <Card value={pct(quizAverage)} label="Rata-rata Quiz" note={`${validQuiz.length} quiz artikel`} />
         </div>
 
         <VocabChart common={chartData.common} awl={chartData.awl} />
+
+        <section style={{ background: "#fff", borderRadius: 14, padding: 22, border: "1px solid #e8e9ed", marginTop: 20 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", gap: 14, alignItems: "baseline", flexWrap: "wrap" }}><div><h3 style={{ fontSize: 17, color: C.navy, margin: 0 }}>My Saved Vocabulary</h3><p style={{ color: "#9197a2", fontSize: 12, margin: "5px 0 0" }}>Kata yang kamu simpan dari artikel. Paket ini tersedia di Vocabulary Practice.</p></div><span style={{ color: C.sage, fontWeight: 800, fontSize: 13 }}>{savedVocabulary.length} kata</span></div>
+          {savedVocabulary.length === 0 ? <div style={{ color: "#9197a2", fontSize: 13, padding: "22px 0 4px" }}>Belum ada kata tersimpan. Buka artikel lalu tekan “Save this vocab”.</div> : <div style={{ display: "flex", flexWrap: "wrap", gap: 9, marginTop: 18 }}>{savedVocabulary.map(item => <div key={item.id} style={{ border: "1px solid #e4e8ea", borderRadius: 9, padding: "9px 12px", minWidth: 150 }}><strong style={{ color: C.navy, fontSize: 13 }}>{item.word}</strong><div style={{ color: "#747b88", fontSize: 12, marginTop: 3 }}>{item.translation}</div>{item.pos && <div style={{ color: C.sage, fontSize: 10, fontWeight: 800, marginTop: 5, textTransform: "uppercase" }}>{item.pos}</div>}</div>)}</div>}
+        </section>
 
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(300px,1fr))", gap: 18, marginTop: 20 }}>
           <section style={{ background: "#fff", borderRadius: 14, padding: 22, border: "1px solid #e8e9ed" }}><h3 style={{ fontSize: 17, color: C.navy, margin: "0 0 5px" }}>Sebaran Artikel Dibaca</h3><p style={{ color: "#9197a2", fontSize: 12, margin: "0 0 20px" }}>Persentase bacaan di tiap level</p><LevelDistribution rows={reading} /></section>

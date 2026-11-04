@@ -267,7 +267,8 @@ const VCATS=['All','Verb','Noun','Adjective'];
 function VocabModule({ supabase, currentUser }){
   const [dbEn,setDbEn]=useState(DB_EN);
   const [dbId,setDbId]=useState(DB_ID);
-  const [pkg,setPkg]=useState("common"); // "common" | "awl"
+  const [pkg,setPkg]=useState("common"); // "common" | "awl" | "personal"
+  const [personal,setPersonal]=useState([]);
   const [scr,setScr]=useState("home"); // home | config | quiz | result | vocablist
   const [mode,setMode]=useState("en");
   const [selCats,setSelCats]=useState(new Set(["All"]));
@@ -289,10 +290,21 @@ function VocabModule({ supabase, currentUser }){
   // AWL data converted to vocab format
   const awlEn = useMemo(()=>DB_AWL_QUIZ.map(w=>({word:w.en,meaning:w.id,category:w.category})),[]);
   const awlId = useMemo(()=>DB_AWL_QUIZ.map(w=>({word:w.id,meaning:w.en,category:w.category})),[]);
+  const personalEn = useMemo(()=>personal.map(w=>({word:w.word,meaning:w.translation,category:w.pos||"Other"})),[personal]);
+  const personalId = useMemo(()=>personal.map(w=>({word:w.translation,meaning:w.word,category:w.pos||"Other"})),[personal]);
 
   // Active DB based on package
-  const activeEn = pkg==="awl" ? awlEn : dbEn;
-  const activeId  = pkg==="awl" ? awlId  : dbId;
+  const activeEn = pkg==="awl" ? awlEn : pkg==="personal" ? personalEn : dbEn;
+  const activeId  = pkg==="awl" ? awlId : pkg==="personal" ? personalId : dbId;
+
+  useEffect(()=>{
+    let active=true;
+    if(!supabase||!currentUser){setPersonal([]);return;}
+    supabase.from("user_saved_vocabulary").select("id,word,translation,pos,context,created_at").eq("user_id",currentUser.id).order("created_at",{ascending:false}).then(({data,error})=>{
+      if(active&&!error)setPersonal(data||[]);
+    });
+    return()=>{active=false;};
+  },[supabase,currentUser]);
 
   const saveVocabScore = async () => {
   if (!supabase || !currentUser) {
@@ -354,7 +366,7 @@ function VocabModule({ supabase, currentUser }){
 
   function getDist(item,pool,m){
     if(m==='en'){const sc=pool.filter(w=>w.category===item.category&&w.word!==item.word&&w.meaning!==item.meaning);const fb=pool.filter(w=>w.word!==item.word&&w.meaning!==item.meaning);const s=sc.length>=3?sc:fb;return shuffle(s).slice(0,3).map(w=>w.meaning);}
-    else{const correct=item.meaning.toLowerCase();const ref=dbEn.find(w=>w.word.toLowerCase()===correct);const cat=ref?ref.category:null;const cw=cat?new Set(dbEn.filter(w=>w.category===cat).map(w=>w.word)):null;const sc=pool.filter(w=>w.word!==item.word&&w.meaning.toLowerCase()!==correct&&(!cw||cw.has(w.meaning)));const fb=pool.filter(w=>w.word!==item.word&&w.meaning.toLowerCase()!==correct);const s=sc.length>=3?sc:fb;return shuffle(s).slice(0,3).map(w=>w.meaning);}
+    else{const correct=item.meaning.toLowerCase();const ref=activeEn.find(w=>w.word.toLowerCase()===correct);const cat=ref?ref.category:null;const cw=cat?new Set(activeEn.filter(w=>w.category===cat).map(w=>w.word)):null;const sc=pool.filter(w=>w.word!==item.word&&w.meaning.toLowerCase()!==correct&&(!cw||cw.has(w.meaning)));const fb=pool.filter(w=>w.word!==item.word&&w.meaning.toLowerCase()!==correct);const s=sc.length>=3?sc:fb;return shuffle(s).slice(0,3).map(w=>w.meaning);}
   }
 
   function startQuiz(retryItems){
@@ -390,7 +402,7 @@ function VocabModule({ supabase, currentUser }){
   const curCat=useMemo(()=>{
     if(!cur)return'—';
     if(mode==='en')return cur.category||'—';
-    const r=dbEn.find(w=>w.word.toLowerCase()===cur.meaning.toLowerCase());
+    const r=activeEn.find(w=>w.word.toLowerCase()===cur.meaning.toLowerCase());
     return r?r.category:'—';
   },[cur,mode]);
 
@@ -407,6 +419,7 @@ function VocabModule({ supabase, currentUser }){
     const pkgs=[
       {id:"common",icon:"📖",title:"Common Words",desc:"322 kata umum bahasa Inggris yang sering muncul di bacaan sehari-hari dan ujian.",count:dbEn.length,badge:""},
       {id:"awl",icon:"🎓",title:"Academic Word List",desc:"373 kosakata akademik penting (AWL) yang sering muncul di teks ilmiah dan ujian.",count:awlEn.length,badge:"AWL"},
+      {id:"personal",icon:"⭐",title:"My Saved Vocabulary",desc:currentUser?"Kata yang kamu simpan dari artikel untuk dipelajari lagi.":"Masuk untuk menyimpan kata dari artikel.",count:personalEn.length,badge:"PERSONAL"},
     ];
     return(<div style={{background:C.cream,minHeight:'100vh'}}>
       <div style={{background:C.navy,padding:'40px 28px 72px',textAlign:'center',position:'relative',overflow:'hidden'}}>
@@ -417,9 +430,9 @@ function VocabModule({ supabase, currentUser }){
 
       {/* Package selector */}
       <div style={{maxWidth:700,margin:'-36px auto 0',padding:'0 22px',position:'relative',zIndex:2}}>
-        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:14,marginBottom:20}}>
+        <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(190px,1fr))',gap:14,marginBottom:20}}>
           {pkgs.map(p=>(
-            <div key={p.id} onClick={()=>setPkg(p.id)} style={{background:'#fff',borderRadius:16,padding:'22px 20px',boxShadow:'0 6px 28px rgba(26,39,68,0.12)',cursor:'pointer',border:`2px solid ${pkg===p.id?"#F39C12":C.border}`,transition:'all .18s',position:'relative'}}
+            <div key={p.id} onClick={()=>{if(p.id!=="personal"||currentUser)setPkg(p.id);}} style={{background:'#fff',borderRadius:16,padding:'22px 20px',boxShadow:'0 6px 28px rgba(26,39,68,0.12)',cursor:p.id==="personal"&&!currentUser?'not-allowed':'pointer',opacity:(p.id==="personal"&&!currentUser)?0.5:1,border:`2px solid ${pkg===p.id?"#F39C12":C.border}`,transition:'all .18s',position:'relative'}}
               onMouseEnter={e=>e.currentTarget.style.borderColor="#F39C12"}
               onMouseLeave={e=>e.currentTarget.style.borderColor=pkg===p.id?"#F39C12":C.border}>
               {pkg===p.id&&<div style={{position:'absolute',top:12,right:12,width:20,height:20,borderRadius:'50%',background:"#F39C12",display:'flex',alignItems:'center',justifyContent:'center',fontSize:11,color:'#fff'}}>✓</div>}
@@ -461,7 +474,7 @@ function VocabModule({ supabase, currentUser }){
   }
 
   if(scr==="vocablist"){
-    const listDb = pkg==="awl" ? awlEn : dbEn;
+    const listDb = pkg==="awl" ? awlEn : pkg==="personal" ? personalEn : dbEn;
     const cats = ["All","Verb","Noun","Adjective","Adverb","Preposition","Conjunction"];
     const filtered = listDb.filter(w=>{
       const matchCat = listCat==="All" || w.category===listCat;
@@ -483,7 +496,7 @@ function VocabModule({ supabase, currentUser }){
 
           {/* Package switcher */}
           <div style={{display:'flex',gap:8,marginBottom:12}}>
-            {[{id:"common",label:"📖 Common Words",count:dbEn.length},{id:"awl",label:"🎓 Academic Word List",count:awlEn.length}].map(p=>(
+            {[{id:"common",label:"📖 Common Words",count:dbEn.length},{id:"awl",label:"🎓 Academic Word List",count:awlEn.length},{id:"personal",label:"⭐ My Saved",count:personalEn.length}].map(p=>(
               <button key={p.id} onClick={()=>setPkg(p.id)} style={{background:pkg===p.id?"#F39C12":"rgba(255,255,255,0.1)",border:'none',color:'#fff',padding:'7px 16px',borderRadius:8,fontSize:'0.78rem',fontWeight:pkg===p.id?700:500,cursor:'pointer',transition:'all .15s',display:'flex',alignItems:'center',gap:6}}>
                 {p.label} <span style={{background:'rgba(255,255,255,0.2)',padding:'1px 7px',borderRadius:10,fontSize:'0.68rem'}}>{p.count}</span>
               </button>
@@ -547,7 +560,7 @@ function VocabModule({ supabase, currentUser }){
           <div style={{fontFamily:"'DM Serif Display',serif",fontSize:'1.5rem'}}>Vocab Quiz {mode==='en'?'EN → ID':'ID → EN'}</div>
         </div>
         <div style={{display:'inline-flex',alignItems:'center',gap:6,background:C.sagePale,borderRadius:20,padding:'4px 12px',marginBottom:14}}>
-          <span style={{fontSize:'0.7rem',fontWeight:700,color:C.sage}}>{pkg==="awl"?"🎓 Academic Word List":"📖 Common Words"} · {activeEn.length} kata</span>
+          <span style={{fontSize:'0.7rem',fontWeight:700,color:C.sage}}>{pkg==="awl"?"🎓 Academic Word List":pkg==="personal"?"⭐ My Saved Vocabulary":"📖 Common Words"} · {activeEn.length} kata</span>
         </div>
         <div style={{color:C.textLight,fontSize:'0.84rem',marginBottom:22}}>{mode==='en'?'Lihat kata Bahasa Inggris, pilih artinya yang tepat.':'Lihat kata Bahasa Indonesia, pilih padanan Bahasa Inggrisnya.'}</div>
         <div style={cardS}><div style={lblS}>Filter Kategori</div>
@@ -895,114 +908,49 @@ function HighlightedText({content,vocabList,dark:dk}){
 // ═══════════════════════════════════════
 // VOCAB PRACTICE TAB
 // ═══════════════════════════════════════
-function VocabPracticeTab({vl, dark:dk, C, txtP, txtS, bdgBg, bgCard, bdrC}){
-  const [sentences, setSentences] = useState({});
-  const [submitted, setSubmitted] = useState({});
-  const [allSubmitted, setAllSubmitted] = useState(false);
+function VocabPracticeTab({vl, dark:dk, C, txtP, bdgBg, bgCard, currentUser, supabase, articleId}){
+  const [saved,setSaved]=useState(new Set());
+  const [saving,setSaving]=useState("");
+  const mutedClr=dk?"rgba(240,236,228,0.45)":"#888";
+  const bdr="1px solid "+(dk?"#2a2a2a":"#e8e2d8");
 
-  const inputBg = dk ? "#1a1a1a" : "#fff";
-  const inputBdr = dk ? "#333" : "#d8d3c8";
-  const cardBg = (i) => i % 2 === 0 ? bgCard : (dk ? "#222" : "#f9f6f0");
-  const bdr = "1px solid " + (dk ? "#2a2a2a" : "#e8e2d8");
-  const mutedClr = dk ? "rgba(240,236,228,0.45)" : "#888";
-  const allFilled = vl.length > 0 && vl.every(v => sentences[v.vid || v.word]?.trim());
+  useEffect(()=>{
+    let active=true;
+    if(!supabase||!currentUser)return;
+    supabase.from("user_saved_vocabulary").select("word").eq("user_id",currentUser.id).then(({data})=>{
+      if(active)setSaved(new Set((data||[]).map(v=>v.word.toLowerCase())));
+    });
+    return()=>{active=false;};
+  },[supabase,currentUser]);
 
-  const handleSend = (vid) => {
-    if (sentences[vid]?.trim()) {
-      setSubmitted(p => ({ ...p, [vid]: true }));
-    }
+  const saveWord=async(v)=>{
+    if(!currentUser){alert("Masuk terlebih dahulu untuk menyimpan vocabulary.");return;}
+    if(!supabase)return;
+    try{
+      setSaving(v.vid||v.word);
+      const {error}=await supabase.from("user_saved_vocabulary").upsert({user_id:currentUser.id,word:v.word.trim(),translation:v.translation||"",pos:v.pos||null,context:v.context||null,source_article_id:articleId||null},{onConflict:"user_id,word",ignoreDuplicates:true});
+      if(error)throw error;
+      setSaved(p=>new Set([...p,v.word.toLowerCase()]));
+    }catch(error){alert(error.message||"Gagal menyimpan vocabulary.");}
+    finally{setSaving("");}
   };
 
-  const handleEdit = (vid) => {
-    setSubmitted(p => ({ ...p, [vid]: false }));
-  };
-
-  return (
-    <div>
-      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:20}}>
-        <h3 style={{fontFamily:"'Playfair Display',serif",fontSize:24,color:txtP,margin:0}}>Vocabulary List</h3>
-        <span style={{fontSize:12,color:mutedClr}}>{Object.values(submitted).filter(Boolean).length}/{vl.length} kalimat</span>
-      </div>
-
-      <div style={{background:dk?"#1e1c18":"#fef9ef",borderRadius:8,padding:"12px 16px",marginBottom:24,fontSize:13,color:dk?"#c9a84c":"#6b5634",borderLeft:"4px solid #c9a84c",lineHeight:1.5}}>
-        ✏️ <strong>Latihan:</strong> Buat satu kalimat sendiri dari setiap kata vocab di bawah, lalu klik <strong>↑</strong> untuk menyimpan.
-      </div>
-
-      <div style={{display:"flex",flexDirection:"column",gap:16}}>
-        {vl.map((v, i) => {
-          const vid = v.vid || v.word;
-          const isSub = submitted[vid];
-          const sent = sentences[vid] || "";
-          const hasSent = sent.trim().length > 0;
-
-          return (
-            <div key={vid} style={{background:cardBg(i),border:bdr,borderRadius:10,padding:"18px 22px",borderLeft:isSub?"4px solid #2d6a4f":"4px solid #c9a84c",transition:"all .2s"}}>
-              {/* Word header */}
-              <div style={{display:"flex",justifyContent:"space-between",alignItems:"baseline",marginBottom:6}}>
-                <div style={{display:"flex",alignItems:"baseline",gap:10}}>
-                  <span style={{fontFamily:"'Playfair Display',serif",fontSize:20,fontWeight:700,color:txtP}}>{v.word}</span>
-                  {v.pos&&<span style={{fontSize:10,fontWeight:700,textTransform:"uppercase",color:"#8b7355",background:bdgBg,padding:"3px 10px",borderRadius:4}}>{v.pos}</span>}
-                </div>
-                {isSub&&<span style={{fontSize:11,color:"#2d6a4f",fontWeight:700}}>✓ Tersimpan</span>}
-              </div>
-              <div style={{fontSize:15,fontWeight:600,color:C.gold,marginBottom:8}}>{v.translation}</div>
-              {v.context&&<div style={{fontSize:13,fontStyle:"italic",color:mutedClr,lineHeight:1.5,marginBottom:12,paddingBottom:10,borderBottom:"1px solid "+(dk?"#2a2a2a":"#eee")}}>"{v.context}"</div>}
-
-              {/* Sentence input */}
-              <div style={{marginTop:8}}>
-                <div style={{fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.08em",color:mutedClr,marginBottom:6}}>Buat kalimatmu:</div>
-                <div style={{display:"flex",gap:8,alignItems:"flex-start"}}>
-                  {isSub ? (
-                    <div style={{flex:1,padding:"10px 14px",background:dk?"#1a2a1a":"#f0f9f0",border:"2px solid #2d6a4f",borderRadius:8,fontSize:14,lineHeight:1.5,color:dk?"#a3d9a5":"#1b4332",fontFamily:"'Source Serif 4',serif",minHeight:44}}>
-                      {sent}
-                    </div>
-                  ) : (
-                    <textarea
-                      value={sent}
-                      onChange={e => setSentences(p => ({...p, [vid]: e.target.value}))}
-                      placeholder={`Tulis kalimat menggunakan "${v.word}"...`}
-                      rows={2}
-                      style={{flex:1,padding:"10px 14px",background:inputBg,border:"1.5px solid "+(hasSent?"#c9a84c":inputBdr),borderRadius:8,fontSize:14,fontFamily:"'Source Serif 4',serif",color:dk?"#e8e4dc":"#1a1a1a",resize:"vertical",outline:"none",lineHeight:1.5,transition:"border .2s"}}
-                    />
-                  )}
-                  <button
-                    onClick={() => isSub ? handleEdit(vid) : handleSend(vid)}
-                    disabled={!isSub && !hasSent}
-                    title={isSub ? "Klik untuk edit" : "Simpan kalimat"}
-                    style={{width:40,height:40,borderRadius:"50%",border:"none",cursor:(!isSub&&!hasSent)?"not-allowed":"pointer",background:isSub?"#2d6a4f":hasSent?"#c9a84c":"#d0c9bc",color:"#fff",fontSize:16,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,transition:"all .2s",boxShadow:"0 2px 8px rgba(0,0,0,0.12)"}}
-                  >
-                    {isSub ? "✏" : "↑"}
-                  </button>
-                </div>
-              </div>
-            </div>
-          );
-        })}
-      </div>
-
-      {/* Submit all */}
-      <div style={{marginTop:32,paddingTop:24,borderTop:"2px solid "+(dk?"#333":"#e8e2d8"),textAlign:"center"}}>
-        {allSubmitted ? (
-          <div style={{background:dk?"#1a2a1a":"#f0f9f0",border:"2px solid #2d6a4f",borderRadius:12,padding:"20px 24px"}}>
-            <div style={{fontSize:28,marginBottom:8}}>🎉</div>
-            <div style={{fontFamily:"'Playfair Display',serif",fontSize:20,fontWeight:700,color:dk?"#a3d9a5":"#1b4332",marginBottom:4}}>Latihan Selesai!</div>
-            <div style={{fontSize:14,color:mutedClr}}>{Object.values(submitted).filter(Boolean).length} dari {vl.length} kalimat dibuat.</div>
-          </div>
-        ) : (
-          <>
-            <button
-              onClick={() => setAllSubmitted(true)}
-              disabled={!allFilled}
-              style={{padding:"14px 40px",background:allFilled?"#1a1a1a":"#d0c9bc",color:"#fff",border:"none",borderRadius:10,fontWeight:700,fontSize:15,cursor:allFilled?"pointer":"not-allowed",fontFamily:"'Source Sans 3',sans-serif",transition:"all .2s",boxShadow:allFilled?"0 4px 16px rgba(0,0,0,0.2)":"none"}}
-            >
-              ✓ Submit Latihan
-            </button>
-            {!allFilled&&<p style={{fontSize:12,color:mutedClr,marginTop:8}}>Isi semua kalimat dulu sebelum submit</p>}
-          </>
-        )}
-      </div>
+  return <div>
+    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:20}}>
+      <h3 style={{fontFamily:"'Playfair Display',serif",fontSize:24,color:txtP,margin:0}}>Vocabulary List</h3>
+      <span style={{fontSize:12,color:mutedClr}}>{saved.size} saved</span>
     </div>
-  );
+    <div style={{background:dk?"#1e1c18":"#fef9ef",borderRadius:8,padding:"12px 16px",marginBottom:24,fontSize:13,color:dk?"#c9a84c":"#6b5634",borderLeft:"4px solid #c9a84c",lineHeight:1.5}}>
+      ⭐ Simpan kata yang ingin kamu pelajari lagi. Kata tersimpan akan muncul di profil dalam <strong>My Saved Vocabulary</strong> dan bisa dipakai untuk quiz pribadi.
+    </div>
+    <div style={{display:"flex",flexDirection:"column",gap:16}}>{vl.map((v,i)=>{
+      const id=v.vid||v.word, isSaved=saved.has(v.word.toLowerCase()), isSaving=saving===id;
+      return <div key={id} style={{background:i%2===0?bgCard:(dk?"#222":"#f9f6f0"),border:bdr,borderRadius:10,padding:"18px 22px",borderLeft:isSaved?"4px solid #2d6a4f":"4px solid #c9a84c"}}>
+        <div style={{display:"flex",justifyContent:"space-between",gap:16,alignItems:"flex-start"}}><div><div style={{display:"flex",alignItems:"baseline",gap:10}}><span style={{fontFamily:"'Playfair Display',serif",fontSize:20,fontWeight:700,color:txtP}}>{v.word}</span>{v.pos&&<span style={{fontSize:10,fontWeight:700,textTransform:"uppercase",color:"#8b7355",background:bdgBg,padding:"3px 10px",borderRadius:4}}>{v.pos}</span>}</div><div style={{fontSize:15,fontWeight:600,color:C.gold,marginTop:5}}>{v.translation}</div>{v.context&&<div style={{fontSize:13,fontStyle:"italic",color:mutedClr,lineHeight:1.5,marginTop:9}}>“{v.context}”</div>}</div>
+        <button type="button" onClick={()=>saveWord(v)} disabled={isSaved||isSaving} style={{padding:"9px 13px",background:isSaved?"#e6f4ea":"#1a2744",color:isSaved?"#1b6b3a":"#fff",border:isSaved?"1px solid #b6dfc0":"none",borderRadius:8,fontWeight:700,fontSize:12,cursor:isSaved?"default":"pointer",whiteSpace:"nowrap"}}>{isSaved?"✓ Saved":isSaving?"Saving...":"☆ Save this vocab"}</button></div>
+      </div>;
+    })}</div>
+  </div>;
 }
 
 // ═══════════════════════════════════════
@@ -1850,7 +1798,7 @@ function ReadingModule({ supabase, currentUser, isAdmin, initialAdmin=false }){
             )}
           </div>}
 
-          {artTab==="vocab"&&<VocabPracticeTab vl={vl} dark={dk} C={C} txtP={txtP} txtS={txtS} bdgBg={bdgBg} bgCard={bgCard} bdrC={bdrC}/>}
+          {artTab==="vocab"&&<VocabPracticeTab vl={vl} dark={dk} C={C} txtP={txtP} bdgBg={bdgBg} bgCard={bgCard} currentUser={currentUser} supabase={supabase} articleId={selArt.id}/>}
           {artTab==="quiz"&&<ReadingQuiz questions={ql} dark={dk} onAnswersChange={setReadingAns} onSubmit={(result)=>{setReadingResult(result);setQuizSubmitted(true);}} onReset={()=>{setReadingResult(null);setQuizSubmitted(false);}}/>}
         </article>
         <TranslatePanel dark={dk} apiKey={GOOGLE_API_KEY}/>

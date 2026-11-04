@@ -1565,12 +1565,17 @@ function ReadingModule({ supabase, currentUser, isAdmin, initialAdmin=false }){
     return f;
   },[articles,cat,levelFilter,completedIds]);
 
-  const delChecked=()=>{if(checked.size===0)return;setArticles(p=>p.filter(a=>!checked.has(a.id)));setArtVocab(p=>p.filter(v=>!checked.has(v.aid)));setRdQuiz(p=>p.filter(q=>!checked.has(q.aid)));setChecked(new Set());};
+  const adminWrite=async(body)=>{
+    if(!supabase)throw new Error("Supabase belum terhubung.");
+    const {error}=await supabase.functions.invoke("admin-articles",{body});
+    if(error)throw error;
+  };
+  const delChecked=async()=>{if(checked.size===0)return;try{await adminWrite({operation:"delete",ids:[...checked]});setArticles(p=>p.filter(a=>!checked.has(a.id)));setArtVocab(p=>p.filter(v=>!checked.has(v.aid)));setRdQuiz(p=>p.filter(q=>!checked.has(q.aid)));setChecked(new Set());}catch(error){alert(error.message||"Gagal menghapus artikel.");}};
   const togCheck=id=>setChecked(p=>{const n=new Set(p);n.has(id)?n.delete(id):n.add(id);return n;});
   const togAll=()=>setChecked(p=>p.size===articles.length?new Set():new Set(articles.map(a=>a.id)));
   const startEdit=(id,f,v)=>{setEditing({id,f});setEditVal(v);};
-  const saveEdit=()=>{if(!editing)return;setArticles(p=>p.map(a=>a.id===editing.id?{...a,[editing.f]:editVal}:a));setEditing(null);setEditVal("");};
-  const onAddSave=(art,vocs,quizzes)=>{setArticles(p=>[...p,art]);setArtVocab(p=>[...p,...vocs]);setRdQuiz(p=>[...p,...quizzes]);setShowAdd(false);};
+  const saveEdit=async()=>{if(!editing)return;try{await adminWrite({operation:"patch",article:{id:editing.id},patch:{[editing.f]:editVal}});setArticles(p=>p.map(a=>a.id===editing.id?{...a,[editing.f]:editVal}:a));setEditing(null);setEditVal("");}catch(error){alert(error.message||"Gagal menyimpan perubahan.");}};
+  const onAddSave=async(art,vocs,quizzes)=>{try{const article={id:art.id,title:art.title,topics:art.topics,level:String(art.level),body_eng:art.body,body_idn:null,image_url:art.image,word_count:art.body.trim().split(/\s+/).filter(Boolean).length,writers:"EduEnglish Admin",source:"Admin",published_on:new Date().toISOString().slice(0,10)};const vocabulary=vocs.map(v=>({id:v.vid,article_id:v.aid,word:v.word,translation:v.translation,pos:v.pos,context:v.context}));const quiz=quizzes.map(q=>({id:q.qid,article_id:q.aid,question:q.question,options:q.options,answer:q.answer,explanation:""}));await adminWrite({operation:"upsert",article,vocabulary,quizzes:quiz});setArticles(p=>[...p,art]);setArtVocab(p=>[...p,...vocs]);setRdQuiz(p=>[...p,...quizzes]);setShowAdd(false);}catch(error){alert(error.message||"Gagal menerbitkan artikel.");}};
 
   // Theme vars
   const bg=dk?"#0f0f0f":"#faf7f2";

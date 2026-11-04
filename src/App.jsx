@@ -1062,6 +1062,24 @@ function ReadingQuiz({questions,dark:dk,onAnswersChange,onSubmit,onReset}){
 // ═══════════════════════════════════════
 // ADD ARTICLE WIZARD
 // ═══════════════════════════════════════
+function preserveEditorialBlocks(originalBody, rewrittenBody){
+  const original=(originalBody||"").split(/\n\n+|\n/).map(x=>x.trim()).filter(Boolean);
+  const rewritten=(rewrittenBody||"").split(/\n\n+|\n/).map(x=>x.trim()).filter(Boolean);
+  const isMarker=text=>/^\[(IMAGE|H2):[\s\S]*\]$/i.test(text);
+  const contentCount=original.filter(text=>!isMarker(text)).length;
+  const markers=original.map((text,index)=>({text,contentBefore:original.slice(0,index).filter(part=>!isMarker(part)).length})).filter(x=>isMarker(x.text));
+  if(!markers.length)return rewrittenBody;
+  const clean=rewritten.filter(text=>!markers.some(marker=>marker.text===text));
+  const rewrittenContentCount=clean.length;
+  let inserted=0;
+  markers.forEach(marker=>{
+    const ratio=contentCount?marker.contentBefore/contentCount:1;
+    const position=Math.max(0,Math.min(clean.length,Math.round(ratio*rewrittenContentCount)+inserted));
+    clean.splice(position,0,marker.text);inserted++;
+  });
+  return clean.join("\n\n");
+}
+
 function AddArticleWizard({onCancel,onSave,existingIds,supabase,initialArticle=null,initialVocab=[],initialQuiz=[]}){
   const [step,setStep]=useState(1);
   const [form,setForm]=useState(initialArticle?{title:initialArticle.title||"",topics:initialArticle.topics||"Science",level:String(initialArticle.level||"1"),body:initialArticle.body||"",image:initialArticle.image||"",writers:initialArticle.writers||"",source:initialArticle.source||"",published_on:initialArticle.date||new Date().toISOString().slice(0,10)}:{title:"",topics:"Science",level:"1",body:"",image:"",writers:"EduEnglish Admin",source:"Admin",published_on:new Date().toISOString().slice(0,10)});
@@ -1097,7 +1115,7 @@ function AddArticleWizard({onCancel,onSave,existingIds,supabase,initialArticle=n
   const ok1=form.title.trim()&&form.body.trim();
   const ok2=vList.every(v=>v.word.trim()&&v.translation.trim());
   const initQ=()=>{setQCount(maxQuiz);setQList(Array.from({length:maxQuiz},()=>({question:"",options:["","","",""],answer:"",explanation:""})));setStep(4);};
-  const processWithAI=async()=>{if(!supabase||!form.body.trim())return;setProcessing(true);try{const {data,error}=await supabase.functions.invoke("admin-articles",{body:{operation:"process",adjust,article:{body:form.body,level:form.level}}});if(error)throw error;setForm(p=>({...p,body:data.body_eng}));setVList(data.vocabulary||[]);setQList(data.quiz||[]);setQCount((data.quiz||[]).length||3);setStep(4);}catch(error){alert(error.message||"AI gagal memproses artikel.");}finally{setProcessing(false);}};
+  const processWithAI=async()=>{if(!supabase||!form.body.trim())return;setProcessing(true);try{const originalBody=form.body;const {data,error}=await supabase.functions.invoke("admin-articles",{body:{operation:"process",adjust,article:{body:originalBody,level:form.level}}});if(error)throw error;setForm(p=>({...p,body:preserveEditorialBlocks(originalBody,data.body_eng)}));setVList(data.vocabulary||[]);setQList(data.quiz||[]);setQCount((data.quiz||[]).length||3);setStep(4);}catch(error){alert(error.message||"AI gagal memproses artikel.");}finally{setProcessing(false);}};
   const uQ=(i,f,v)=>setQList(p=>p.map((q,j)=>j===i?{...q,[f]:v}:q));
   const uQO=(qi,oi,v)=>setQList(p=>p.map((q,j)=>j===qi?{...q,options:q.options.map((o,k)=>k===oi?v:o)}:q));
   const okSave=qList.length>0&&qList.every(q=>q.question.trim()&&q.options.every(o=>o.trim())&&q.answer.trim());

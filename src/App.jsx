@@ -1062,15 +1062,15 @@ function ReadingQuiz({questions,dark:dk,onAnswersChange,onSubmit,onReset}){
 // ═══════════════════════════════════════
 // ADD ARTICLE WIZARD
 // ═══════════════════════════════════════
-function AddArticleWizard({onCancel,onSave,existingIds,supabase}){
+function AddArticleWizard({onCancel,onSave,existingIds,supabase,initialArticle=null,initialVocab=[],initialQuiz=[]}){
   const [step,setStep]=useState(1);
-  const [form,setForm]=useState({title:"",topics:"Science",level:"1",body:"",image:"",writers:"EduEnglish Admin",source:"Admin",published_on:new Date().toISOString().slice(0,10)});
-  const [vList,setVList]=useState([{word:"",translation:"",pos:"Noun",context:""}]);
-  const [qCount,setQCount]=useState(4);
-  const [qList,setQList]=useState([]);
+  const [form,setForm]=useState(initialArticle?{title:initialArticle.title||"",topics:initialArticle.topics||"Science",level:String(initialArticle.level||"1"),body:initialArticle.body||"",image:initialArticle.image||"",writers:initialArticle.writers||"",source:initialArticle.source||"",published_on:initialArticle.date||new Date().toISOString().slice(0,10)}:{title:"",topics:"Science",level:"1",body:"",image:"",writers:"EduEnglish Admin",source:"Admin",published_on:new Date().toISOString().slice(0,10)});
+  const [vList,setVList]=useState(initialVocab.length?initialVocab.map(v=>({word:v.word,translation:v.translation,pos:v.pos||"Noun",context:v.context||""})):[{word:"",translation:"",pos:"Noun",context:""}]);
+  const [qCount,setQCount]=useState(initialQuiz.length||4);
+  const [qList,setQList]=useState(initialQuiz.map(q=>({question:q.question,options:[...q.options],answer:q.answer,explanation:q.explanation||""})));
   const [adjust,setAdjust]=useState(true);
   const [processing,setProcessing]=useState(false);
-  const newId=useMemo(()=>{const nums=existingIds.map(id=>parseInt(id.replace(/\D/g,''))||0);return"A"+(Math.max(0,...nums)+1);},[existingIds]);
+  const newId=useMemo(()=>{if(initialArticle?.id)return initialArticle.id;const nums=existingIds.map(id=>parseInt(id.replace(/\D/g,''))||0);return"A"+(Math.max(0,...nums)+1);},[existingIds,initialArticle]);
   const sI={width:"100%",padding:"10px 14px",border:"1.5px solid #d8d3c8",borderRadius:8,fontSize:14,fontFamily:"'Source Sans 3',sans-serif",background:"#fff",outline:"none"};
   const sT={...sI,minHeight:180,resize:"vertical",lineHeight:1.7,fontFamily:"'Source Serif 4',serif"};
   const sS={padding:"10px 14px",border:"1.5px solid #d8d3c8",borderRadius:8,fontSize:14,fontFamily:"'Source Sans 3',sans-serif",background:"#fff",outline:"none",cursor:"pointer"};
@@ -1115,7 +1115,7 @@ function AddArticleWizard({onCancel,onSave,existingIds,supabase}){
   return(
     <div style={{maxWidth:720,margin:"0 auto",padding:"32px 24px 80px",animation:"fadeUp .3s ease-out"}}>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:24}}>
-        <h2 style={{fontFamily:"'Playfair Display',serif",fontSize:28,color:"#1a1a1a",margin:0}}>Add New Article</h2>
+        <h2 style={{fontFamily:"'Playfair Display',serif",fontSize:28,color:"#1a1a1a",margin:0}}>{initialArticle?"Edit Article":"Add New Article"}</h2>
         <button onClick={onCancel} style={bS}>Cancel</button>
       </div>
       <div style={{display:"flex",gap:4,marginBottom:28}}>{steps.map((l,i)=>(<div key={i} style={{flex:1,textAlign:"center"}}><div style={{height:4,borderRadius:2,background:i+1<=step?"#1a1a1a":"#e0dcd5",marginBottom:6}}/><span style={{fontSize:10,fontWeight:i+1===step?700:500,color:i+1<=step?"#1a1a1a":"#aaa",textTransform:"uppercase",letterSpacing:"0.06em"}}>{l}</span></div>))}</div>
@@ -1169,7 +1169,7 @@ function AddArticleWizard({onCancel,onSave,existingIds,supabase}){
           </div>))}
           <div style={{fontSize:12,fontWeight:700,color:"#555",margin:"14px 0 7px",textTransform:"uppercase",letterSpacing:"0.06em"}}>Pembahasan</div><textarea style={{...sT,minHeight:90}} value={q.explanation||""} onChange={e=>uQ(qi,"explanation",e.target.value)} placeholder="Mengapa jawaban benar, bukti dari teks, dan mengapa distractor terkuat salah..."/>
         </div>))}
-        <div style={{display:"flex",justifyContent:"space-between",gap:10,marginTop:8}}><button onClick={()=>setStep(3)} style={bS}>← Back</button><button onClick={doSave} disabled={!okSave} style={{...bP,background:okSave?"#2d6a4f":"#ccc",cursor:okSave?"pointer":"not-allowed"}}>✓ Save Article</button></div>
+        <div style={{display:"flex",justifyContent:"space-between",gap:10,marginTop:8}}><button onClick={()=>setStep(1)} style={bS}>← Edit Body</button><button onClick={doSave} disabled={!okSave} style={{...bP,background:okSave?"#2d6a4f":"#ccc",cursor:okSave?"pointer":"not-allowed"}}>✓ {initialArticle?"Update Article":"Save Article"}</button></div>
       </div>}
     </div>
   );
@@ -1375,6 +1375,7 @@ function ReadingModule({ supabase, currentUser, isAdmin, initialAdmin=false }){
   const [dark,setDark]=useState(false);
   const [showAdmin,setShowAdmin]=useState(initialAdmin);
   const [showAdd,setShowAdd]=useState(false);
+  const [editingArticle,setEditingArticle]=useState(null);
   const [checked,setChecked]=useState(new Set());
   const [editing,setEditing]=useState(null);
   const [editVal,setEditVal]=useState("");
@@ -1586,7 +1587,7 @@ function ReadingModule({ supabase, currentUser, isAdmin, initialAdmin=false }){
   const togAll=()=>setChecked(p=>p.size===articles.length?new Set():new Set(articles.map(a=>a.id)));
   const startEdit=(id,f,v)=>{setEditing({id,f});setEditVal(v);};
   const saveEdit=async()=>{if(!editing)return;try{await adminWrite({operation:"patch",article:{id:editing.id},patch:{[editing.f]:editVal}});setArticles(p=>p.map(a=>a.id===editing.id?{...a,[editing.f]:editVal}:a));setEditing(null);setEditVal("");}catch(error){alert(error.message||"Gagal menyimpan perubahan.");}};
-  const onAddSave=async(art,vocs,quizzes)=>{try{const article={id:art.id,title:art.title,topics:art.topics,level:String(art.level),body_eng:art.body,body_idn:null,image_url:art.image,word_count:art.body.trim().split(/\s+/).filter(Boolean).length,writers:art.writers||"EduEnglish Admin",source:art.source||"Admin",published_on:art.published_on||new Date().toISOString().slice(0,10)};const vocabulary=vocs.map(v=>({id:v.vid,article_id:v.aid,word:v.word,translation:v.translation,pos:v.pos,context:v.context}));const quiz=quizzes.map(q=>({id:q.qid,article_id:q.aid,question:q.question,options:q.options,answer:q.answer,explanation:q.explanation||""}));await adminWrite({operation:"upsert",article,vocabulary,quizzes:quiz});setArticles(p=>[...p,art]);setArtVocab(p=>[...p,...vocs]);setRdQuiz(p=>[...p,...quizzes]);setShowAdd(false);}catch(error){alert(error.message||"Gagal menerbitkan artikel.");}};
+  const onAddSave=async(art,vocs,quizzes)=>{try{const article={id:art.id,title:art.title,topics:art.topics,level:String(art.level),body_eng:art.body,body_idn:null,image_url:art.image,word_count:art.body.trim().split(/\s+/).filter(Boolean).length,writers:art.writers||"EduEnglish Admin",source:art.source||"Admin",published_on:art.published_on||new Date().toISOString().slice(0,10)};const vocabulary=vocs.map(v=>({id:v.vid,article_id:v.aid,word:v.word,translation:v.translation,pos:v.pos,context:v.context}));const quiz=quizzes.map(q=>({id:q.qid,article_id:q.aid,question:q.question,options:q.options,answer:q.answer,explanation:q.explanation||""}));await adminWrite({operation:"upsert",article,vocabulary,quizzes:quiz});setArticles(p=>p.some(a=>a.id===art.id)?p.map(a=>a.id===art.id?art:a):[...p,art]);setArtVocab(p=>[...p.filter(v=>v.aid!==art.id),...vocs]);setRdQuiz(p=>[...p.filter(q=>q.aid!==art.id),...quizzes]);setEditingArticle(null);setShowAdd(false);}catch(error){alert(error.message||"Gagal menerbitkan artikel.");}};
 
   // Theme vars
   const bg=dk?"#0f0f0f":"#faf7f2";
@@ -1639,9 +1640,9 @@ function ReadingModule({ supabase, currentUser, isAdmin, initialAdmin=false }){
   if(showAdd)return(
     <div style={{minHeight:"100vh",background:"#faf7f2",fontFamily:"'Source Sans 3',sans-serif"}}>
       <div style={{position:"sticky",top:48,zIndex:100,background:"rgba(250,247,242,0.95)",backdropFilter:"blur(10px)",borderBottom:"1px solid #e0dcd5",padding:"12px 0"}}>
-        <div style={{maxWidth:780,margin:"0 auto",padding:"0 24px"}}><button onClick={()=>setShowAdd(false)} style={{background:"none",border:"none",cursor:"pointer",fontSize:14,fontWeight:600,color:"#8b7355",fontFamily:"'Source Sans 3',sans-serif"}}>← Back to Admin</button></div>
+        <div style={{maxWidth:780,margin:"0 auto",padding:"0 24px"}}><button onClick={()=>{setShowAdd(false);setEditingArticle(null);}} style={{background:"none",border:"none",cursor:"pointer",fontSize:14,fontWeight:600,color:"#8b7355",fontFamily:"'Source Sans 3',sans-serif"}}>← Back to Admin</button></div>
       </div>
-      <AddArticleWizard onCancel={()=>setShowAdd(false)} onSave={onAddSave} existingIds={articles.map(a=>a.id)} supabase={supabase}/>
+      <AddArticleWizard key={editingArticle?.id||"new"} onCancel={()=>{setShowAdd(false);setEditingArticle(null);}} onSave={onAddSave} existingIds={articles.map(a=>a.id)} supabase={supabase} initialArticle={editingArticle} initialVocab={editingArticle?gv(editingArticle.id):[]} initialQuiz={editingArticle?gq(editingArticle.id):[]}/>
     </div>
   );
 
@@ -1656,7 +1657,7 @@ function ReadingModule({ supabase, currentUser, isAdmin, initialAdmin=false }){
             <button onClick={()=>setShowAdmin(false)} style={{background:"none",border:"none",cursor:"pointer",fontSize:14,fontWeight:600,color:"#8b7355",fontFamily:"'Source Sans 3',sans-serif"}}>← Back to Reading</button>
             <div style={{display:"flex",gap:10}}>
               {checked.size>0&&<button onClick={delChecked} style={{padding:"8px 18px",background:"#c1554d",color:"#fff",border:"none",borderRadius:8,fontSize:13,fontWeight:700,cursor:"pointer"}}>Delete ({checked.size})</button>}
-              <button onClick={()=>setShowAdd(true)} style={{padding:"8px 18px",background:"#1a1a1a",color:"#fff",border:"none",borderRadius:8,fontSize:13,fontWeight:700,cursor:"pointer"}}>+ Add Article</button>
+              <button onClick={()=>{setEditingArticle(null);setShowAdd(true);}} style={{padding:"8px 18px",background:"#1a1a1a",color:"#fff",border:"none",borderRadius:8,fontSize:13,fontWeight:700,cursor:"pointer"}}>+ Add Article</button>
             </div>
           </div>
         </div>
@@ -1666,7 +1667,7 @@ function ReadingModule({ supabase, currentUser, isAdmin, initialAdmin=false }){
           <div style={{background:"#fff",borderRadius:12,overflow:"hidden",boxShadow:"0 4px 24px rgba(26,39,68,0.08)",border:"1px solid #e8e2d8"}}>
             <table style={{width:"100%",borderCollapse:"collapse"}}><thead><tr style={{background:"#f9f6f0"}}>
               <th style={{...th,width:40,textAlign:"center"}}><input type="checkbox" checked={checked.size===articles.length&&articles.length>0} onChange={togAll} style={{accentColor:C.gold,width:16,height:16,cursor:"pointer"}}/></th>
-              <th style={{...th,width:70}}>Code</th><th style={th}>Title</th><th style={{...th,width:110}}>Category</th><th style={{...th,width:70}}>Level</th><th style={{...th,width:60,textAlign:"center"}}>Vocab</th><th style={{...th,width:50,textAlign:"center"}}>Quiz</th><th style={{...th,width:70,textAlign:"center"}}>Featured</th>
+              <th style={{...th,width:70}}>Code</th><th style={th}>Title</th><th style={{...th,width:110}}>Category</th><th style={{...th,width:70}}>Level</th><th style={{...th,width:60,textAlign:"center"}}>Vocab</th><th style={{...th,width:50,textAlign:"center"}}>Quiz</th><th style={{...th,width:70,textAlign:"center"}}>Featured</th><th style={{...th,width:70,textAlign:"center"}}>Edit</th>
             </tr></thead><tbody>
               {articles.map((a,i)=>{const isSel=checked.has(a.id);return(
                 <tr key={a.id} style={{background:isSel?"#fef9ef":i%2===0?"#fff":"#fdfcf9"}}>
@@ -1678,6 +1679,7 @@ function ReadingModule({ supabase, currentUser, isAdmin, initialAdmin=false }){
                   <td style={{...td,textAlign:"center",fontWeight:600,fontSize:13}}>{gv(a.id).length}</td>
                   <td style={{...td,textAlign:"center",fontWeight:600,fontSize:13}}>{gq(a.id).length}</td>
                   <td style={{...td,textAlign:"center"}}><button onClick={()=>setFeaturedIds(p=>{const n=new Set(p);n.has(a.id)?n.delete(a.id):n.size<3?n.add(a.id):null;return n;})} style={{padding:"4px 12px",background:featuredIds.has(a.id)?"#c9a84c":"#eee",color:featuredIds.has(a.id)?"#fff":"#999",border:"none",borderRadius:6,fontSize:11,fontWeight:700,cursor:"pointer"}}>{featuredIds.has(a.id)?"⭐ Yes":"No"}</button></td>
+                  <td style={{...td,textAlign:"center"}}><button onClick={()=>{setEditingArticle(a);setShowAdd(true);}} style={{padding:"6px 12px",background:"#1a1a1a",color:"#fff",border:0,borderRadius:6,fontSize:11,fontWeight:700,cursor:"pointer"}}>Edit</button></td>
                 </tr>);})}
             </tbody></table>
             {articles.length===0&&<div style={{textAlign:"center",padding:"40px 20px",color:"#aaa"}}><div style={{fontSize:32,marginBottom:10}}>📭</div>No articles yet.</div>}

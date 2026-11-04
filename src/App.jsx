@@ -1062,7 +1062,7 @@ function ReadingQuiz({questions,dark:dk,onAnswersChange,onSubmit,onReset}){
 // ═══════════════════════════════════════
 function AddArticleWizard({onCancel,onSave,existingIds}){
   const [step,setStep]=useState(1);
-  const [form,setForm]=useState({title:"",topics:"Science",level:"1",body:"",image:""});
+  const [form,setForm]=useState({title:"",topics:"Science",level:"1",body:"",image:"",writers:"EduEnglish Admin",source:"Admin",published_on:new Date().toISOString().slice(0,10)});
   const [vList,setVList]=useState([{word:"",translation:"",pos:"Noun",context:""}]);
   const [qCount,setQCount]=useState(4);
   const [qList,setQList]=useState([]);
@@ -1097,7 +1097,7 @@ function AddArticleWizard({onCancel,onSave,existingIds}){
   const okSave=qList.length>0&&qList.every(q=>q.question.trim()&&q.options.every(o=>o.trim())&&q.answer.trim());
   const insertImageBlock=()=>setForm(p=>({...p,body:`${p.body.trimEnd()}${p.body.trim()?"\n\n":""}[IMAGE: https://image-url.com/photo.jpg | Tulis caption gambar | Sumber gambar]\n\n`}));
   const doSave=()=>{
-    const art={id:newId,title:form.title.trim(),topics:form.topics,level:form.level,body:form.body.trim(),image:form.image.trim()||FALLBACK_ARTICLE_IMAGE};
+    const art={id:newId,title:form.title.trim(),topics:form.topics,level:form.level,body:form.body.trim(),image:form.image.trim()||FALLBACK_ARTICLE_IMAGE,writers:form.writers.trim(),source:form.source.trim(),published_on:form.published_on};
     const vocs=vList.filter(v=>v.word.trim()).map((v,i)=>({aid:newId,vid:newId+"_V"+(i+1),word:v.word.trim(),translation:v.translation.trim(),pos:v.pos,context:v.context.trim()}));
     const quizzes=qList.filter(q=>q.question.trim()&&q.answer.trim()).map((q,i)=>({qid:newId+"_Q"+(i+1),aid:newId,question:q.question.trim(),options:q.options.map(o=>o.trim()),answer:q.answer.trim()}));
     onSave(art,vocs,quizzes);
@@ -1116,6 +1116,7 @@ function AddArticleWizard({onCancel,onSave,existingIds}){
           <div><label style={lS}>Category</label><select style={{...sS,width:"100%"}} value={form.topics} onChange={e=>setForm(p=>({...p,topics:e.target.value}))}>{["Science","Social","Lifestyle","Economics","Politics"].map(c=><option key={c}>{c}</option>)}</select></div>
           <div><label style={lS}>Level</label><select style={{...sS,width:"100%"}} value={form.level} onChange={e=>setForm(p=>({...p,level:e.target.value}))}>{[["1","Level 1 — A2–B1"],["2","Level 2 — B2"],["3","Level 3 — C1–C2"]].map(([v,l])=><option key={v} value={v}>{l}</option>)}</select></div>
         </div>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 150px",gap:14}}><div><label style={lS}>Penulis</label><input style={sI} value={form.writers} onChange={e=>setForm(p=>({...p,writers:e.target.value}))}/></div><div><label style={lS}>Sumber</label><input style={sI} value={form.source} onChange={e=>setForm(p=>({...p,source:e.target.value}))}/></div><div><label style={lS}>Tanggal</label><input type="date" style={sI} value={form.published_on} onChange={e=>setForm(p=>({...p,published_on:e.target.value}))}/></div></div>
         <div><label style={lS}>Image URL (optional)</label><input style={sI} value={form.image} onChange={e=>setForm(p=>({...p,image:e.target.value}))} placeholder="https://..."/></div>
         <div><label style={lS}>Body Text *</label><textarea style={sT} value={form.body} onChange={e=>setForm(p=>({...p,body:e.target.value}))} placeholder="Paste full article. Separate paragraphs with blank lines."/><div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:12,marginTop:7}}><span style={{fontSize:11,color:"#aaa"}}>{form.body.split(/\s+/).filter(Boolean).length} words</span><button type="button" onClick={insertImageBlock} style={{padding:"6px 10px",border:"1px solid #d8d3c8",borderRadius:6,background:"#fff",color:"#5d5144",fontSize:12,fontWeight:700,cursor:"pointer"}}>🖼 Sisipkan gambar ke body</button></div><div style={{fontSize:11,color:"#8b7355",lineHeight:1.5,marginTop:8}}>Blok gambar dapat dipindahkan di antara paragraf. Isi URL, caption, dan sumbernya: <code>[IMAGE: URL | Caption | Sumber]</code>.</div></div>
         <div style={{background:"#f7f4ed",border:"1px solid #e8e2d8",borderRadius:10,padding:"14px 16px",fontSize:13,color:"#5d5144"}}>
@@ -1575,7 +1576,7 @@ function ReadingModule({ supabase, currentUser, isAdmin, initialAdmin=false }){
   const togAll=()=>setChecked(p=>p.size===articles.length?new Set():new Set(articles.map(a=>a.id)));
   const startEdit=(id,f,v)=>{setEditing({id,f});setEditVal(v);};
   const saveEdit=async()=>{if(!editing)return;try{await adminWrite({operation:"patch",article:{id:editing.id},patch:{[editing.f]:editVal}});setArticles(p=>p.map(a=>a.id===editing.id?{...a,[editing.f]:editVal}:a));setEditing(null);setEditVal("");}catch(error){alert(error.message||"Gagal menyimpan perubahan.");}};
-  const onAddSave=async(art,vocs,quizzes)=>{try{const article={id:art.id,title:art.title,topics:art.topics,level:String(art.level),body_eng:art.body,body_idn:null,image_url:art.image,word_count:art.body.trim().split(/\s+/).filter(Boolean).length,writers:"EduEnglish Admin",source:"Admin",published_on:new Date().toISOString().slice(0,10)};const vocabulary=vocs.map(v=>({id:v.vid,article_id:v.aid,word:v.word,translation:v.translation,pos:v.pos,context:v.context}));const quiz=quizzes.map(q=>({id:q.qid,article_id:q.aid,question:q.question,options:q.options,answer:q.answer,explanation:""}));await adminWrite({operation:"upsert",article,vocabulary,quizzes:quiz});setArticles(p=>[...p,art]);setArtVocab(p=>[...p,...vocs]);setRdQuiz(p=>[...p,...quizzes]);setShowAdd(false);}catch(error){alert(error.message||"Gagal menerbitkan artikel.");}};
+  const onAddSave=async(art,vocs,quizzes)=>{try{const article={id:art.id,title:art.title,topics:art.topics,level:String(art.level),body_eng:art.body,body_idn:null,image_url:art.image,word_count:art.body.trim().split(/\s+/).filter(Boolean).length,writers:art.writers||"EduEnglish Admin",source:art.source||"Admin",published_on:art.published_on||new Date().toISOString().slice(0,10)};const vocabulary=vocs.map(v=>({id:v.vid,article_id:v.aid,word:v.word,translation:v.translation,pos:v.pos,context:v.context}));const quiz=quizzes.map(q=>({id:q.qid,article_id:q.aid,question:q.question,options:q.options,answer:q.answer,explanation:""}));await adminWrite({operation:"upsert",article,vocabulary,quizzes:quiz});setArticles(p=>[...p,art]);setArtVocab(p=>[...p,...vocs]);setRdQuiz(p=>[...p,...quizzes]);setShowAdd(false);}catch(error){alert(error.message||"Gagal menerbitkan artikel.");}};
 
   // Theme vars
   const bg=dk?"#0f0f0f":"#faf7f2";

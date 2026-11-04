@@ -1083,6 +1083,7 @@ function AddArticleWizard({onCancel,onSave,existingIds,supabase}){
     "3":{title:"Level 3 — C1–C2",length:"550–900 kata",description:"Tidak ada pembatasan pilihan kata. Pertahankan vocabulary berita, akademik, atau domain spesifik yang diperlukan.",list:[]}
   };
   const guide=levelGuide[form.level];
+  const maxQuiz=form.level==="1"?3:form.level==="2"?4:5;
   const guideMatches=useMemo(()=>{
     if(!form.body.trim()||form.level==="3")return [];
     const bodyWords=new Set((form.body.toLowerCase().match(/[a-z]+(?:'[a-z]+)?/g)||[]));
@@ -1095,7 +1096,7 @@ function AddArticleWizard({onCancel,onSave,existingIds,supabase}){
   });
   const ok1=form.title.trim()&&form.body.trim();
   const ok2=vList.every(v=>v.word.trim()&&v.translation.trim());
-  const initQ=()=>{setQList(Array.from({length:qCount},()=>({question:"",options:["","","",""],answer:""})));setStep(4);};
+  const initQ=()=>{setQCount(maxQuiz);setQList(Array.from({length:maxQuiz},()=>({question:"",options:["","","",""],answer:"",explanation:""})));setStep(4);};
   const processWithAI=async()=>{if(!supabase||!form.body.trim())return;setProcessing(true);try{const {data,error}=await supabase.functions.invoke("admin-articles",{body:{operation:"process",adjust,article:{body:form.body,level:form.level}}});if(error)throw error;setForm(p=>({...p,body:data.body_eng}));setVList(data.vocabulary||[]);setQList(data.quiz||[]);setQCount((data.quiz||[]).length||3);setStep(4);}catch(error){alert(error.message||"AI gagal memproses artikel.");}finally{setProcessing(false);}};
   const uQ=(i,f,v)=>setQList(p=>p.map((q,j)=>j===i?{...q,[f]:v}:q));
   const uQO=(qi,oi,v)=>setQList(p=>p.map((q,j)=>j===qi?{...q,options:q.options.map((o,k)=>k===oi?v:o)}:q));
@@ -1107,7 +1108,7 @@ function AddArticleWizard({onCancel,onSave,existingIds,supabase}){
   const doSave=()=>{
     const art={id:newId,title:form.title.trim(),topics:form.topics,level:form.level,body:form.body.trim(),image:form.image.trim()||FALLBACK_ARTICLE_IMAGE,writers:form.writers.trim(),source:form.source.trim(),published_on:form.published_on};
     const vocs=vList.filter(v=>v.word.trim()).map((v,i)=>({aid:newId,vid:newId+"_V"+(i+1),word:v.word.trim(),translation:v.translation.trim(),pos:v.pos,context:v.context.trim()}));
-    const quizzes=qList.filter(q=>q.question.trim()&&q.answer.trim()).map((q,i)=>({qid:newId+"_Q"+(i+1),aid:newId,question:q.question.trim(),options:q.options.map(o=>o.trim()),answer:q.answer.trim()}));
+    const quizzes=qList.filter(q=>q.question.trim()&&q.answer.trim()).map((q,i)=>({qid:newId+"_Q"+(i+1),aid:newId,question:q.question.trim(),options:q.options.map(o=>o.trim()),answer:q.answer.trim(),explanation:(q.explanation||"").trim()}));
     onSave(art,vocs,quizzes);
   };
   const steps=["Article Details","Vocabulary","Quiz Setup","Quiz Questions"];
@@ -1152,8 +1153,8 @@ function AddArticleWizard({onCancel,onSave,existingIds,supabase}){
       {step===3&&<div style={{textAlign:"center",padding:"40px 0"}}>
         <div style={{fontSize:48,marginBottom:16}}>🧠</div>
         <h3 style={{fontFamily:"'Playfair Display',serif",fontSize:24,marginBottom:8}}>Reading Comprehension Quiz</h3>
-        <p style={{fontSize:14,color:"#666",marginBottom:28,maxWidth:400,margin:"0 auto 28px"}}>How many quiz questions?</p>
-        <div style={{display:"flex",justifyContent:"center",gap:12,marginBottom:32}}>{[2,3,4,5,6].map(n=>(<button key={n} onClick={()=>setQCount(n)} style={{width:56,height:56,borderRadius:12,border:`2px solid ${qCount===n?"#1a1a1a":"#d8d3c8"}`,background:qCount===n?"#1a1a1a":"#fff",color:qCount===n?"#fff":"#333",fontFamily:"'DM Serif Display',serif",fontSize:22,cursor:"pointer"}}>{n}</button>))}</div>
+        <p style={{fontSize:14,color:"#666",marginBottom:28,maxWidth:400,margin:"0 auto 28px"}}>Level {form.level} menggunakan maksimal {maxQuiz} soal.</p>
+        <div style={{display:"flex",justifyContent:"center",gap:12,marginBottom:32}}><div style={{width:64,height:64,borderRadius:12,background:"#1a1a1a",color:"#fff",display:"grid",placeItems:"center",fontFamily:"'DM Serif Display',serif",fontSize:24}}>{maxQuiz}</div></div>
         <div style={{display:"flex",justifyContent:"center",gap:10}}><button onClick={()=>setStep(2)} style={bS}>← Back</button><button onClick={initQ} style={bP}>Next: Write Questions →</button></div>
       </div>}
       {step===4&&<div>
@@ -1166,6 +1167,7 @@ function AddArticleWizard({onCancel,onSave,existingIds,supabase}){
             <span style={{width:22,height:22,borderRadius:6,background:"#f0ece4",display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:700,color:"#8b7355",flexShrink:0}}>{"ABCD"[oi]}</span>
             <input style={{...sI,flex:1}} value={opt} onChange={e=>{uQO(qi,oi,e.target.value);if(q.answer===q.options[oi])uQ(qi,"answer",e.target.value);}} placeholder={`Option ${"ABCD"[oi]}`}/>
           </div>))}
+          <div style={{fontSize:12,fontWeight:700,color:"#555",margin:"14px 0 7px",textTransform:"uppercase",letterSpacing:"0.06em"}}>Pembahasan</div><textarea style={{...sT,minHeight:90}} value={q.explanation||""} onChange={e=>uQ(qi,"explanation",e.target.value)} placeholder="Mengapa jawaban benar, bukti dari teks, dan mengapa distractor terkuat salah..."/>
         </div>))}
         <div style={{display:"flex",justifyContent:"space-between",gap:10,marginTop:8}}><button onClick={()=>setStep(3)} style={bS}>← Back</button><button onClick={doSave} disabled={!okSave} style={{...bP,background:okSave?"#2d6a4f":"#ccc",cursor:okSave?"pointer":"not-allowed"}}>✓ Save Article</button></div>
       </div>}
@@ -1584,7 +1586,7 @@ function ReadingModule({ supabase, currentUser, isAdmin, initialAdmin=false }){
   const togAll=()=>setChecked(p=>p.size===articles.length?new Set():new Set(articles.map(a=>a.id)));
   const startEdit=(id,f,v)=>{setEditing({id,f});setEditVal(v);};
   const saveEdit=async()=>{if(!editing)return;try{await adminWrite({operation:"patch",article:{id:editing.id},patch:{[editing.f]:editVal}});setArticles(p=>p.map(a=>a.id===editing.id?{...a,[editing.f]:editVal}:a));setEditing(null);setEditVal("");}catch(error){alert(error.message||"Gagal menyimpan perubahan.");}};
-  const onAddSave=async(art,vocs,quizzes)=>{try{const article={id:art.id,title:art.title,topics:art.topics,level:String(art.level),body_eng:art.body,body_idn:null,image_url:art.image,word_count:art.body.trim().split(/\s+/).filter(Boolean).length,writers:art.writers||"EduEnglish Admin",source:art.source||"Admin",published_on:art.published_on||new Date().toISOString().slice(0,10)};const vocabulary=vocs.map(v=>({id:v.vid,article_id:v.aid,word:v.word,translation:v.translation,pos:v.pos,context:v.context}));const quiz=quizzes.map(q=>({id:q.qid,article_id:q.aid,question:q.question,options:q.options,answer:q.answer,explanation:""}));await adminWrite({operation:"upsert",article,vocabulary,quizzes:quiz});setArticles(p=>[...p,art]);setArtVocab(p=>[...p,...vocs]);setRdQuiz(p=>[...p,...quizzes]);setShowAdd(false);}catch(error){alert(error.message||"Gagal menerbitkan artikel.");}};
+  const onAddSave=async(art,vocs,quizzes)=>{try{const article={id:art.id,title:art.title,topics:art.topics,level:String(art.level),body_eng:art.body,body_idn:null,image_url:art.image,word_count:art.body.trim().split(/\s+/).filter(Boolean).length,writers:art.writers||"EduEnglish Admin",source:art.source||"Admin",published_on:art.published_on||new Date().toISOString().slice(0,10)};const vocabulary=vocs.map(v=>({id:v.vid,article_id:v.aid,word:v.word,translation:v.translation,pos:v.pos,context:v.context}));const quiz=quizzes.map(q=>({id:q.qid,article_id:q.aid,question:q.question,options:q.options,answer:q.answer,explanation:q.explanation||""}));await adminWrite({operation:"upsert",article,vocabulary,quizzes:quiz});setArticles(p=>[...p,art]);setArtVocab(p=>[...p,...vocs]);setRdQuiz(p=>[...p,...quizzes]);setShowAdd(false);}catch(error){alert(error.message||"Gagal menerbitkan artikel.");}};
 
   // Theme vars
   const bg=dk?"#0f0f0f":"#faf7f2";

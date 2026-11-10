@@ -12,14 +12,28 @@ export function LoginPage({ supabase }) {
 
   const begin = (name) => { setError(""); setMessage(""); setLoading(name); };
 
-  const oauth = async (provider) => {
-    if (!supabase) return setError("Supabase belum dikonfigurasi.");
-    begin(provider);
-    const { error: authError } = await supabase.auth.signInWithOAuth({
-      provider,
-      options: { redirectTo: window.location.origin },
-    });
-    if (authError) { setError(authError.message); setLoading(""); }
+  const oauth = async () => {
+    if (!supabase) {
+      setError("Login Google belum siap. Konfigurasi Supabase aplikasi belum tersedia.");
+      return;
+    }
+
+    begin("google");
+    try {
+      const { error: authError } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: { redirectTo: window.location.origin },
+      });
+      if (authError) {
+        setError(authError.message.includes("provider")
+          ? "Login Google belum diaktifkan. Hubungi admin aplikasi."
+          : authError.message);
+        setLoading("");
+      }
+    } catch {
+      setError("Tidak dapat memulai login Google. Periksa koneksi internet lalu coba lagi.");
+      setLoading("");
+    }
   };
 
   const submitEmail = async (event) => {
@@ -41,7 +55,7 @@ export function LoginPage({ supabase }) {
   return (
     <div style={{ minHeight: "calc(100vh - 50px)", display: "grid", placeItems: "center", background: `linear-gradient(145deg,${C.navy},#0e1627)`, padding: 20 }}>
       <div style={{ width: "100%", maxWidth: 430, background: C.cream, borderRadius: 18, padding: "36px 32px", boxShadow: "0 22px 60px rgba(0,0,0,.3)" }}>
-        <h1 style={{ textAlign: "center", color: C.navy, fontFamily: "'DM Serif Display',serif", fontSize: 30, marginBottom: 5 }}>EduEnglish</h1>
+        <h1 style={{ textAlign: "center", color: C.navy, fontFamily: "'DM Serif Display',serif", fontSize: 30, marginBottom: 5 }}>TumbuhAcademy</h1>
         <p style={{ textAlign: "center", color: "#77808f", fontSize: 13, marginBottom: 25 }}>Masuk agar perkembangan belajarmu tersimpan</p>
 
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", background: "#ebe9e3", borderRadius: 9, padding: 3, marginBottom: 22 }}>
@@ -57,10 +71,9 @@ export function LoginPage({ supabase }) {
         </form>
 
         <div style={{ display: "flex", alignItems: "center", gap: 12, color: "#a1a5ad", fontSize: 12, margin: "21px 0" }}><span style={{ height: 1, background: "#ddd", flex: 1 }} /><span>atau lanjutkan dengan</span><span style={{ height: 1, background: "#ddd", flex: 1 }} /></div>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-          <button disabled={!!loading} onClick={() => oauth("google")} style={social}>{loading === "google" ? "Memuat..." : "G  Google"}</button>
-          <button disabled={!!loading} onClick={() => oauth("x")} style={{ ...social, background: "#111", color: "#fff", borderColor: "#111" }}>{loading === "x" ? "Memuat..." : "𝕏  X"}</button>
-        </div>
+        <button type="button" disabled={!!loading} onClick={oauth} style={social}>
+          {loading === "google" ? "Mengarahkan ke Google..." : "Lanjutkan dengan Google"}
+        </button>
         <p style={{ color: "#9499a3", fontSize: 11, lineHeight: 1.5, textAlign: "center", marginTop: 20 }}>Dengan masuk, progres vocab, artikel, dan quiz tersimpan di profilmu.</p>
       </div>
     </div>

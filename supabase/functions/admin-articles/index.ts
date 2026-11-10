@@ -121,6 +121,13 @@ Deno.serve(async (req) => {
         return json({ error: "ids must be a non-empty array of article IDs" }, { status: 400 });
       }
 
+      // Keep users' saved words, but detach them from an article that is about to be removed.
+      const savedVocabulary = await admin
+        .from("user_saved_vocabulary")
+        .update({ source_article_id: null })
+        .in("source_article_id", x.ids);
+      if (savedVocabulary.error) throw savedVocabulary.error;
+
       // Delete dependent rows first so foreign-key constraints do not block the article deletion.
       for (const table of ["reading_progress", "article_vocabulary", "article_quizzes"]) {
         const result = await admin.from(table).delete().in("article_id", x.ids);

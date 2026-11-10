@@ -1813,17 +1813,6 @@ function ReadingModule({ supabase, currentUser, isAdmin, initialAdmin=false }){
   const meta=(a)=>`${getSourceName(a.source)} · ${a.date?String(a.date).split("T")[0]+" · ":""}${readingMinutes(a.word_count,a.body)} min read`;
   return(
     <div className={dk?"news-shell news-dark":"news-shell"}>
-      <header className="news-masthead">
-        <div className="news-kicker">Tumbuh Academy · English Newsroom</div>
-        <div className="news-masthead-row">
-          <div>
-            <h1>Read the news.<br/>Build your English.</h1>
-            <p>Berita aktual yang diolah menjadi latihan membaca bertingkat—dengan vocab, terjemahan, dan quiz.</p>
-          </div>
-          <div className="news-edition"><span>Today’s edition</span><strong>{new Intl.DateTimeFormat("id-ID",{day:"numeric",month:"long",year:"numeric"}).format(new Date())}</strong></div>
-        </div>
-      </header>
-
       <nav className="news-topicbar" aria-label="Kategori berita">
         <div className="news-topicbar-inner">
           <button className={cat==="all"?"active":""} onClick={()=>setCat("all")}>Latest</button>
@@ -1928,17 +1917,19 @@ export default function App(){
       @keyframes skPulse{0%,100%{opacity:1}50%{opacity:.4}}
       *{box-sizing:border-box;margin:0;padding:0}
       ::-webkit-scrollbar{width:5px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:#ccc;border-radius:3px}
+      .site-header{background:#172019;position:sticky;top:0;z-index:500;border-bottom:1px solid rgba(255,255,255,.12)}
+      .site-header-inner{display:flex;align-items:center;justify-content:space-between;padding:0 24px;max-width:1236px;margin:0 auto;min-height:50px}
+      .site-brand{cursor:pointer;padding-right:22px;flex-shrink:0;border-right:1px solid rgba(255,255,255,.18)}
+      .site-brand-name{font-family:'DM Serif Display',serif;color:#fff;font-size:1.15rem;letter-spacing:-.01em}
+      .site-nav{display:flex;flex:1;align-items:center}
+      .site-auth{display:flex;align-items:center;flex-shrink:0}
+      @media(max-width:620px){
+        .site-header-inner{padding:0 12px}.site-brand{padding-right:10px}.site-brand-name{font-size:.98rem}
+        .site-nav button{padding-inline:8px!important;font-size:.72rem!important}.site-profile-name{display:none}
+      }
 
       .news-shell{--paper:#f7f4ed;--surface:#fffdf8;--ink:#171814;--muted:#6d7068;--rule:#c9c7bd;--soft-rule:#dfddd4;--accent:#c65d2e;min-height:100vh;background:var(--paper);color:var(--ink);font-family:'DM Sans',sans-serif;transition:background .2s,color .2s}
       .news-shell.news-dark{--paper:#121310;--surface:#181a16;--ink:#f2efe6;--muted:#a6a79f;--rule:#55574f;--soft-rule:#30322d;--accent:#e77a49}
-      .news-masthead{max-width:1180px;margin:0 auto;padding:34px 28px 30px;border-bottom:4px solid var(--ink)}
-      .news-kicker{font-size:11px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:var(--accent);margin-bottom:22px}
-      .news-masthead-row{display:flex;align-items:flex-end;justify-content:space-between;gap:48px}
-      .news-masthead h1{font-family:'DM Serif Display',serif;font-size:clamp(42px,6vw,76px);font-weight:400;line-height:.92;letter-spacing:-.045em;max-width:760px}
-      .news-masthead p{max-width:620px;margin-top:18px;color:var(--muted);font-family:'Source Serif 4',serif;font-size:16px;line-height:1.55}
-      .news-edition{min-width:180px;padding-left:18px;border-left:1px solid var(--rule);display:flex;flex-direction:column;gap:5px;text-align:left}
-      .news-edition span{font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
-      .news-edition strong{font-family:'Source Serif 4',serif;font-size:14px;font-weight:600}
       .news-topicbar{position:sticky;top:50px;z-index:150;background:color-mix(in srgb,var(--paper) 94%,transparent);backdrop-filter:blur(10px);border-bottom:1px solid var(--rule)}
       .news-topicbar-inner{max-width:1180px;margin:0 auto;padding:0 28px;display:flex;align-items:center;min-height:48px}
       .news-topicbar button{appearance:none;background:none;border:0;color:var(--muted);font:600 12px 'DM Sans',sans-serif;padding:16px 14px;cursor:pointer;letter-spacing:.02em}
@@ -1988,13 +1979,12 @@ export default function App(){
       .news-empty{padding:80px 0;border-bottom:2px solid var(--ink);display:flex;flex-direction:column;gap:7px;text-align:center;color:var(--muted)}
       .news-empty strong{font:400 30px 'DM Serif Display',serif;color:var(--ink)}
       @media(max-width:820px){
-        .news-masthead{padding:28px 20px 24px}.news-masthead-row{display:block}.news-edition{display:none}.news-masthead h1{font-size:49px}.news-masthead p{font-size:14px}
         .news-topicbar{top:48px;overflow-x:auto}.news-topicbar-inner{padding:0 20px;min-width:max-content}.news-main{padding:0 20px 64px}
         .news-lead-grid{grid-template-columns:1fr;gap:28px}.news-supporting{grid-template-columns:repeat(2,minmax(0,1fr));grid-template-rows:auto}.news-supporting article+article{border-top:0;padding-top:0;border-left:1px solid var(--rule);padding-left:20px}
         .news-latest-layout{grid-template-columns:1fr}.news-guide{position:static;margin-top:0}.news-feed article{grid-template-columns:minmax(0,1fr) 150px}.news-section-heading small{display:none}
       }
       @media(max-width:560px){
-        .news-masthead h1{font-size:41px}.news-kicker{margin-bottom:16px}.news-filter-row{align-items:flex-start;padding:12px 0}.news-levels>span{width:100%;margin-bottom:2px}.news-count{display:none}
+        .news-filter-row{align-items:flex-start;padding:12px 0}.news-levels>span{width:100%;margin-bottom:2px}.news-count{display:none}
         .news-supporting{grid-template-columns:1fr}.news-supporting article+article{border-left:0;padding-left:0;border-top:1px solid var(--rule);padding-top:22px}
         .news-supporting-image{aspect-ratio:16/9}.news-feed article{grid-template-columns:minmax(0,1fr) 104px;gap:15px}.news-feed h3{font-size:21px}.news-feed p{display:none}.news-feed-image{aspect-ratio:1/1}.news-meta{font-size:9px}.news-section-heading span{font-size:25px}
       }
@@ -2031,11 +2021,14 @@ export default function App(){
   };
 
   const Header = () => {
-    const [dropdownOpen, setDropdownOpen] = useState(false);
-    const isModuleActive = mod === "vocab" || mod === "reading";
+    const navStyle = (active) => ({
+      background:"none",border:"none",padding:"16px 15px 13px",color:active?"#fff":"rgba(255,255,255,0.58)",
+      fontFamily:"'DM Sans',sans-serif",fontSize:"0.78rem",fontWeight:active?700:600,cursor:"pointer",
+      borderBottom:active?"3px solid #F39C12":"3px solid transparent",transition:"color .15s,border-color .15s",whiteSpace:"nowrap"
+    });
     return (
-      <div style={{background:"#172019",padding:0,position:"sticky",top:0,zIndex:500,borderBottom:"1px solid rgba(255,255,255,.12)"}}>
-        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"0 24px",maxWidth:1236,margin:"0 auto",minHeight:50}}>
+      <div className="site-header">
+        <div className="site-header-inner">
           {/* Home icon logo */}
           <div onClick={()=>setMod("reading")} title="Beranda" style={{display:"none",alignItems:"center",padding:"14px 8px",cursor:"pointer",flexShrink:0}}>
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={mod==="reading"?"#fff":"rgba(255,255,255,0.45)"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -2045,46 +2038,24 @@ export default function App(){
           </div>
 
           {/* Brand name */}
-          <div onClick={()=>setMod("reading")} style={{cursor:"pointer",padding:"0 22px 0 0",flexShrink:0,borderRight:"1px solid rgba(255,255,255,.18)"}}>
-            <span style={{fontFamily:"'DM Serif Display',serif",color:"#fff",fontSize:"1.15rem",letterSpacing:"-.01em"}}>Tumbuh<span style={{color:"#e77a49"}}>Academy</span></span>
+          <div className="site-brand" onClick={()=>setMod("reading")}>
+            <span className="site-brand-name">Tumbuh<span style={{color:"#e77a49"}}>Academy</span></span>
           </div>
 
           {/* Nav */}
-          <div style={{display:"flex",gap:0,flex:1,alignItems:"center"}}>
-            {/* Mulai Yuk dropdown */}
-            <div style={{position:"relative"}} onMouseEnter={()=>setDropdownOpen(true)} onMouseLeave={()=>setDropdownOpen(false)}>
-              <button style={{background:"none",border:"none",padding:"16px 18px",color:isModuleActive?"#fff":"rgba(255,255,255,0.5)",fontFamily:"'DM Sans',sans-serif",fontSize:"0.82rem",fontWeight:isModuleActive?700:500,cursor:"pointer",borderBottom:isModuleActive?"3px solid #F39C12":"3px solid transparent",transition:"all .15s",display:"flex",alignItems:"center",gap:6,whiteSpace:"nowrap"}}>
-                Learn
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{transition:"transform .2s",transform:dropdownOpen?"rotate(180deg)":"none"}}>
-                  <polyline points="6 9 12 15 18 9"/>
-                </svg>
-              </button>
-              {dropdownOpen && (
-                <div style={{position:"absolute",top:"100%",left:0,background:"#1e2a47",borderRadius:10,boxShadow:"0 8px 32px rgba(0,0,0,0.35)",minWidth:180,overflow:"hidden",animation:"ttIn .15s ease-out",border:"1px solid rgba(255,255,255,0.08)"}}>
-                  <button onClick={()=>{setMod("vocab");setDropdownOpen(false);}} style={{display:"flex",alignItems:"center",gap:10,width:"100%",background:mod==="vocab"?"rgba(243,156,18,0.12)":"none",border:"none",padding:"12px 18px",color:mod==="vocab"?"#F39C12":"rgba(255,255,255,0.75)",fontFamily:"'DM Sans',sans-serif",fontSize:"0.83rem",cursor:"pointer",textAlign:"left",transition:"background .12s"}}
-                    onMouseEnter={e=>e.currentTarget.style.background="rgba(255,255,255,0.07)"}
-                    onMouseLeave={e=>e.currentTarget.style.background=mod==="vocab"?"rgba(243,156,18,0.12)":"none"}>
-                    Vocabulary practice
-                  </button>
-                  <div style={{height:1,background:"rgba(255,255,255,0.07)",margin:"0 12px"}}/>
-                  <button onClick={()=>{setMod("reading");setDropdownOpen(false);}} style={{display:"flex",alignItems:"center",gap:10,width:"100%",background:mod==="reading"?"rgba(243,156,18,0.12)":"none",border:"none",padding:"12px 18px",color:mod==="reading"?"#F39C12":"rgba(255,255,255,0.75)",fontFamily:"'DM Sans',sans-serif",fontSize:"0.83rem",cursor:"pointer",textAlign:"left",transition:"background .12s"}}
-                    onMouseEnter={e=>e.currentTarget.style.background="rgba(255,255,255,0.07)"}
-                    onMouseLeave={e=>e.currentTarget.style.background=mod==="reading"?"rgba(243,156,18,0.12)":"none"}>
-                    Reading room
-                  </button>
-                </div>
-              )}
-            </div>
+          <div className="site-nav" aria-label="Navigasi utama">
+            <button onClick={()=>setMod("vocab")} style={navStyle(mod==="vocab")}>Vocab</button>
+            <button onClick={()=>setMod("reading")} style={navStyle(mod==="reading")}>Newsroom</button>
           </div>
 
           {/* Auth area — name only, no Keluar button */}
-          <div style={{display:"flex",alignItems:"center",flexShrink:0}}>
+          <div className="site-auth">
             {currentUser ? (
               <button onClick={()=>setMod("profile")} style={{background:"none",border:"none",padding:"8px 10px",color:mod==="profile"?"#fff":"rgba(255,255,255,0.6)",fontFamily:"'DM Sans',sans-serif",fontSize:"0.82rem",cursor:"pointer",borderBottom:mod==="profile"?"3px solid #F39C12":"3px solid transparent",transition:"all .15s",whiteSpace:"nowrap",display:"flex",alignItems:"center",gap:7}}>
                 <div style={{width:26,height:26,borderRadius:"50%",background:"rgba(243,156,18,0.2)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,color:"#F39C12",fontWeight:700,flexShrink:0}}>
                   {(currentUser.user_metadata?.name||currentUser.email||"?")[0].toUpperCase()}
                 </div>
-                {currentUser.user_metadata?.name || currentUser.email?.split("@")[0] || "Profil"}
+                <span className="site-profile-name">{currentUser.user_metadata?.name || currentUser.email?.split("@")[0] || "Profil"}</span>
               </button>
             ) : (
               <button onClick={()=>setMod("login")} style={{background:"#e77a49",border:"none",padding:"8px 17px",color:"#fff",fontFamily:"'DM Sans',sans-serif",fontSize:"0.75rem",fontWeight:700,cursor:"pointer",borderRadius:2,whiteSpace:"nowrap",transition:"all .15s",textTransform:"uppercase",letterSpacing:".06em"}}

@@ -10,6 +10,9 @@ CRAWLER_KEY=replace-with-vault-crawler-key
 QWEN_API_KEY=replace-with-dashscope-api-key
 QWEN_BASE_URL=https://dashscope-intl.aliyuncs.com/compatible-mode/v1/chat/completions
 QWEN_MODEL=qwen3.8-max
+# Optional licensed Google image fallback. The crawler uses the source article image first.
+GOOGLE_CSE_API_KEY=
+GOOGLE_CSE_ID=
 ```
 
 The environment file must be root-owned with mode `0600`. Install the service and timer files under `/etc/systemd/system/`, then run `systemctl daemon-reload` and enable the six `tumbuhacademy-*.timer` units.

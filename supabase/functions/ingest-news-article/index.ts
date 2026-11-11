@@ -34,9 +34,13 @@ const jakartaDate = () =>
     day: "2-digit",
   }).format(new Date());
 
-function validDraft(value: unknown): value is GeneratedArticle {
+function paragraphs(value: string) {
+  return value.trim().split(/\n\s*\n/).map((part) => part.trim()).filter(Boolean);
+}
+
+function validDraft(value: unknown, level: string): value is GeneratedArticle {
   const draft = value as GeneratedArticle;
-  return Boolean(
+  const validShape = Boolean(
     draft?.title?.trim() &&
       draft.body_eng?.trim() &&
       draft.body_idn?.trim() &&
@@ -53,6 +57,12 @@ function validDraft(value: unknown): value is GeneratedArticle {
         entry.explanation?.trim()
       )
   );
+  if (!validShape) return false;
+  if (level === "1") {
+    const words = draft.body_eng.trim().split(/\s+/).filter(Boolean).length;
+    return words >= 200 && paragraphs(draft.body_eng).length === 3 && paragraphs(draft.body_idn).length === 3;
+  }
+  return true;
 }
 
 Deno.serve(async (request) => {
@@ -116,9 +126,9 @@ Deno.serve(async (request) => {
     }
 
     if (body.operation !== "ingest") return json({ error: "Invalid operation" }, 400);
-    if (!validDraft(body.draft)) return json({ error: "Invalid article draft" }, 400);
+    if (!validDraft(body.draft, source.level)) return json({ error: "Invalid article draft" }, 400);
 
-    const item = body.item as { title?: string; url?: string; summary?: string };
+    const item = body.item as { title?: string; url?: string; summary?: string; imageUrl?: string };
     let itemUrl: URL;
     try {
       itemUrl = new URL(item?.url || "");
@@ -132,6 +142,17 @@ Deno.serve(async (request) => {
       !item?.summary?.trim()
     ) {
       return json({ error: "Source item does not match the crawl" }, 400);
+    }
+
+    let imageUrl: string | null = null;
+    if (item.imageUrl) {
+      try {
+        const parsedImage = new URL(item.imageUrl);
+        if (parsedImage.protocol !== "https:") return json({ error: "Invalid image URL" }, 400);
+        imageUrl = parsedImage.toString();
+      } catch {
+        return json({ error: "Invalid image URL" }, 400);
+      }
     }
 
     const { data: duplicateBySource, error: duplicateSourceError } = await supabase
@@ -166,7 +187,7 @@ Deno.serve(async (request) => {
       topics,
       body_eng: draft.body_eng.trim(),
       body_idn: draft.body_idn.trim(),
-      image_url: null,
+      image_url: imageUrl,
       level: source.level,
       writers: source.name,
       source: itemUrl.toString(),

@@ -1,0 +1,20 @@
+[Unit]
+Description=Tumbuh Academy news crawler (%i)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=ubuntu
+Group=ubuntu
+WorkingDirectory=/opt/tumbuhacademy-crawler
+EnvironmentFile=/etc/tumbuhacademy-crawler.env
+ExecStart=/usr/bin/flock -n /run/tumbuhacademy-crawler.lock /usr/bin/node /opt/tumbuhacademy-crawler/scripts/crawl-news-vps.mjs %i
+TimeoutStartSec=20min
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=strict
+
+[Install]
+WantedBy=multi-user.target

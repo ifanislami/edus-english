@@ -1,0 +1,10 @@
+[Unit]
+Description=Saturday DW Indonesia Level 2 crawl
+
+[Timer]
+OnCalendar=Sat *-*-* 08:00:00 Asia/Jakarta
+Persistent=true
+Unit=tumbuhacademy-crawler@dw-l2.service
+
+[Install]
+WantedBy=timers.target

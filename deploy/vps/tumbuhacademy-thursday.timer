@@ -1,0 +1,10 @@
+[Unit]
+Description=Thursday ScienceAlert Level 1 crawl
+
+[Timer]
+OnCalendar=Thu *-*-* 08:00:00 Asia/Jakarta
+Persistent=true
+Unit=tumbuhacademy-crawler@sciencealert-l1.service
+
+[Install]
+WantedBy=timers.target

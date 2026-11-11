@@ -1,0 +1,10 @@
+[Unit]
+Description=Friday Republika Level 1 crawl
+
+[Timer]
+OnCalendar=Fri *-*-* 08:00:00 Asia/Jakarta
+Persistent=true
+Unit=tumbuhacademy-crawler@republika-l1.service
+
+[Install]
+WantedBy=timers.target

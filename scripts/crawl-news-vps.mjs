@@ -188,7 +188,7 @@ async function fetchSourceDocument(item) {
     throw new Error(`Source article is too thin for a factual adaptation (${text.length} characters)`);
   }
   return {
-    text: text.slice(0, 18_000),
+    text: text.slice(0, 9_000),
     imageUrl: (await usableImage(item.imageUrl)) ? item.imageUrl : metaImage(html, item.url),
   };
 }
@@ -266,6 +266,8 @@ async function generateLearningArticle(source, item, document) {
           body: JSON.stringify({
             model: process.env.QWEN_MODEL || "qwen3.8-max",
             temperature: 0.2,
+          max_tokens: 2400,
+          enable_thinking: false,
             response_format: { type: "json_object" },
             messages,
           }),

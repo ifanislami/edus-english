@@ -96,18 +96,30 @@ Deno.serve(async (request) => {
     const date = jakartaDate();
     const { data: published, error: publishedError } = await supabase
       .from("articles")
-      .select("id")
+      .select("id,title,source,source_url,source_title")
       .eq("level", source.level)
       .eq("writers", source.name)
       .eq("published_on", date)
       .limit(1);
     if (publishedError) throw publishedError;
 
-    if (published?.length) {
+    const existing = published?.[0];
+    if (existing && body.operation === "prepare" && body.replaceToday) {
+      const url = existing.source_url || existing.source;
+      if (!url) return json({ error: "Existing article has no source URL" }, 400);
+      return json({
+        ok: true,
+        crawl: body.crawl,
+        date,
+        articleId: existing.id,
+        item: { title: existing.source_title || existing.title, url, summary: "Existing article refresh" },
+      });
+    }
+    if (existing && body.operation !== "replace") {
       return json({
         ok: true,
         skipped: "already-published-today",
-        articleId: published[0].id,
+        articleId: existing.id,
         crawl: body.crawl,
         date,
       });
@@ -125,7 +137,11 @@ Deno.serve(async (request) => {
       return json({ ok: true, crawl: body.crawl, date, usedUrls });
     }
 
-    if (body.operation !== "ingest") return json({ error: "Invalid operation" }, 400);
+    if (body.operation !== "ingest" && body.operation !== "replace") return json({ error: "Invalid operation" }, 400);
+    const replacing = body.operation === "replace";
+    if (replacing && (!existing || body.articleId !== existing.id)) {
+      return json({ error: "Only today's matching article can be replaced" }, 400);
+    }
     if (!validDraft(body.draft, source.level)) return json({ error: "Invalid article draft" }, 400);
 
     const item = body.item as { title?: string; url?: string; summary?: string; imageUrl?: string };
@@ -168,19 +184,19 @@ Deno.serve(async (request) => {
       .limit(1);
     if (duplicateUrlError) throw duplicateUrlError;
     const duplicate = duplicateBySource?.[0] || duplicateByUrl?.[0];
-    if (duplicate) {
+    if (duplicate && (!replacing || duplicate.id !== existing?.id)) {
       return json({ ok: true, skipped: "source-already-published", articleId: duplicate.id });
     }
 
     const draft = body.draft as GeneratedArticle;
-    const articleId = `ai-${crypto.randomUUID().replaceAll("-", "")}`;
+    const articleId = replacing ? existing!.id : `ai-${crypto.randomUUID().replaceAll("-", "")}`;
     const sourceUpdatedAt = new Date().toISOString();
     const topics = (
       Array.isArray(draft.topics) ? draft.topics.join(", ") : String(draft.topics || "")
     ).trim().slice(0, 300) || "News";
     const words = draft.body_eng.trim().split(/\s+/).filter(Boolean).length;
 
-    const { error: articleError } = await supabase.from("articles").insert({
+    const articlePayload = {
       id: articleId,
       word_count: words,
       title: draft.title.trim(),
@@ -195,10 +211,19 @@ Deno.serve(async (request) => {
       source_title: item.title.trim(),
       published_on: date,
       source_updated_at: sourceUpdatedAt,
-    });
+    };
+    const { error: articleError } = replacing
+      ? await supabase.from("articles").update(articlePayload).eq("id", articleId)
+      : await supabase.from("articles").insert(articlePayload);
     if (articleError) throw articleError;
 
     try {
+      if (replacing) {
+        const { error: removeVocabularyError } = await supabase.from("article_vocabulary").delete().eq("article_id", articleId);
+        if (removeVocabularyError) throw removeVocabularyError;
+        const { error: removeQuizError } = await supabase.from("article_quizzes").delete().eq("article_id", articleId);
+        if (removeQuizError) throw removeQuizError;
+      }
       const { error: vocabularyError } = await supabase
         .from("article_vocabulary")
         .insert(draft.vocabulary.slice(0, 5).map((entry, index) => ({
@@ -225,7 +250,7 @@ Deno.serve(async (request) => {
     } catch (error) {
       await supabase.from("article_quizzes").delete().eq("article_id", articleId);
       await supabase.from("article_vocabulary").delete().eq("article_id", articleId);
-      await supabase.from("articles").delete().eq("id", articleId);
+      if (!replacing) await supabase.from("articles").delete().eq("id", articleId);
       throw error;
     }
 

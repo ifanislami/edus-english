@@ -156,12 +156,52 @@ function paragraphs(text) {
   return String(text || "").trim().split(/\n\s*\n/).map((part) => part.trim()).filter(Boolean);
 }
 
+function sourceTextFromHtml(html) {
+  const jsonLdBlocks = html.match(/<script[^>]+type=["']application\/ld\+json["'][^>]*>[\s\S]*?<\/script>/gi) || [];
+  const candidates = [];
+  const visit = (value) => {
+    if (!value || typeof value !== "object") return;
+    if (Array.isArray(value)) return value.forEach(visit);
+    if (typeof value.articleBody === "string") candidates.push(value.articleBody);
+    if (Array.isArray(value["@graph"])) value["@graph"].forEach(visit);
+  };
+  for (const block of jsonLdBlocks) {
+    try { visit(JSON.parse(block.replace(/^[\s\S]*?>|<\/script>$/gi, ""))); } catch {}
+  }
+  const article = html.match(/<article\b[^>]*>([\s\S]*?)<\/article>/i)?.[1] || html;
+  const paragraphsFromHtml = [...article.matchAll(/<p\b[^>]*>([\s\S]*?)<\/p>/gi)]
+    .map((match) => clean(match[1]))
+    .filter((text) => text.length >= 60)
+    .filter((text, index, values) => values.indexOf(text) === index);
+  candidates.push(paragraphsFromHtml.join("\n\n"));
+  return candidates.map(clean).sort((a, b) => b.length - a.length)[0] || "";
+}
+
+async function fetchSourceDocument(item) {
+  const response = await fetchWithTimeout(item.url, {
+    headers: { "user-agent": "Mozilla/5.0 (compatible; TumbuhAcademyBot/2.0)" },
+  }, 45_000);
+  if (!response.ok) throw new Error(`Source article failed: ${response.status}`);
+  const html = await response.text();
+  const text = sourceTextFromHtml(html);
+  if (text.length < 1_200) {
+    throw new Error(`Source article is too thin for a factual adaptation (${text.length} characters)`);
+  }
+  return {
+    text: text.slice(0, 18_000),
+    imageUrl: (await usableImage(item.imageUrl)) ? item.imageUrl : metaImage(html, item.url),
+  };
+}
+
 function validateDraft(article, source) {
   const errors = [];
   if (
     !article?.title ||
     !article.body_eng ||
     !article.body_idn ||
+    !Array.isArray(article.source_facts) ||
+    article.source_facts.length < 5 ||
+    article.source_facts.some((fact) => typeof fact !== "string" || fact.trim().length < 15) ||
     !Array.isArray(article.vocabulary) ||
     article.vocabulary.length < 5 ||
     !Array.isArray(article.quiz) ||
@@ -187,6 +227,9 @@ function validateDraft(article, source) {
     if (indonesianParagraphs.length !== 3) {
       errors.push(`Level 1 body_idn has ${indonesianParagraphs.length} paragraphs; exactly 3 required`);
     }
+    if (/\b(very bad|scary|the article does not say|the summary|the next step may be more news|ai does not make)\b/i.test(article.body_eng)) {
+      errors.push("Level 1 body_eng contains vague or source-meta filler");
+    }
   }
   if (errors.length) {
     throw new Error(errors.join("; "));
@@ -194,13 +237,13 @@ function validateDraft(article, source) {
   return article;
 }
 
-async function generateLearningArticle(source, item) {
+async function generateLearningArticle(source, item, document) {
   const quizCount = source.level === "1" ? "3" : "4";
   const wordRange = source.level === "1" ? "200-260" : "180-260";
   const levelOneStructure = source.level === "1"
-    ? ` LEVEL 1 STRUCTURE IS MANDATORY: body_eng must contain exactly 3 paragraphs separated by a blank line (two \\n characters in the JSON string). Paragraph 1 explains the main event. Paragraph 2 develops the most important supporting details or context. Paragraph 3 explains the impact, significance, or likely next development. Each paragraph must have one clear controlling idea with supporting sentences; do not dump unrelated facts into a paragraph. body_idn must preserve the same three-paragraph structure.`
+    ? ` LEVEL 1 STRUCTURE IS MANDATORY: body_eng must contain exactly 3 paragraphs separated by a blank line (two \\n characters in the JSON string). Paragraph 1: the main finding or event, including a named subject and one concrete fact. Paragraph 2: the mechanism, evidence, or context, including at least two concrete supporting facts. Paragraph 3: the significance and an important limitation, uncertainty, or next step. Each paragraph has one controlling idea; do not dump unrelated facts into a paragraph. body_idn must preserve the same three-paragraph structure.`
     : " Organize body_eng and body_idn into coherent paragraphs with one controlling idea per paragraph.";
-  const prompt = `Create an original English-learning news adaptation based ONLY on this RSS headline and summary. Do not copy source wording beyond a short title. Return strict JSON with keys: title, topics, body_eng, body_idn, vocabulary, quiz. topics must be one short comma-separated string, never an array. body_eng must be an original, accurate news summary in English at CEFR Level ${source.level} (${wordRange} words).${levelOneStructure} body_idn must be a natural Indonesian translation using active, natural Indonesian where possible. vocabulary is an array of 5 objects with word and translation. quiz is an array of exactly ${quizCount} objects with question, options (exactly 4 English strings), answer (one option exactly), explanation (short Indonesian). Every fact must be supported by the RSS item.\n\nSource: ${source.name}\nHeadline: ${item.title}\nRSS summary: ${item.summary}`;
+  const prompt = `Create an original English-learning news adaptation from the ORIGINAL ARTICLE TEXT below, not from its headline alone. Do not copy long source phrasing; preserve the source's essential facts, numbers, names, places, mechanisms, historical examples, and uncertainty. Return strict JSON with keys: title, topics, source_facts, body_eng, body_idn, vocabulary, quiz. source_facts must be an array of 5-8 short, concrete claims directly supported by the original article. topics must be one short comma-separated string, never an array. body_eng must be an original, accurate news summary in English at CEFR Level ${source.level} (${wordRange} words).${levelOneStructure} Do not write vague filler such as "very bad", "scary", "the article does not say", "the summary", or editorial information about the news site. body_idn must be a natural Indonesian translation using active, natural Indonesian where possible. vocabulary is an array of 5 objects with word and translation. quiz is an array of exactly ${quizCount} objects with question, options (exactly 4 English strings), answer (one option exactly), explanation (short Indonesian). Every factual claim must be supported by source_facts and the original article.\n\nPublisher: ${source.name}\nOriginal headline: ${item.title}\nOriginal article text:\n${document.text}`;
 
   console.log(`Generating Level ${source.level} article with Qwen`);
   const messages = [
@@ -296,21 +339,6 @@ async function usableImage(url) {
   }
 }
 
-async function sourceImage(item) {
-  if (await usableImage(item.imageUrl)) return item.imageUrl;
-  try {
-    const response = await fetchWithTimeout(item.url, {
-      headers: { "user-agent": "Mozilla/5.0 (compatible; TumbuhAcademyBot/2.0)" },
-    }, 30_000);
-    if (!response.ok) return null;
-    const candidate = metaImage(await response.text(), item.url);
-    return await usableImage(candidate) ? candidate : null;
-  } catch (error) {
-    console.warn(`Could not extract source image: ${error.message}`);
-    return null;
-  }
-}
-
 async function googleImage(draft) {
   const key = process.env.GOOGLE_CSE_API_KEY?.trim();
   const cx = process.env.GOOGLE_CSE_ID?.trim();
@@ -354,8 +382,8 @@ async function googleImage(draft) {
   return null;
 }
 
-async function findArticleImage(item, draft) {
-  const original = await sourceImage(item);
+async function findArticleImage(item, draft, document) {
+  const original = await usableImage(document.imageUrl) ? document.imageUrl : null;
   if (original) {
     console.log("Using the original news image");
     return original;
@@ -364,20 +392,23 @@ async function findArticleImage(item, draft) {
 }
 
 const crawl = process.argv[2];
+const replaceToday = process.argv.includes("--replace-today");
 const source = sources[crawl];
 if (!source) {
   throw new Error(`Invalid crawl. Choose one of: ${Object.keys(sources).join(", ")}`);
 }
 
 console.log(`Starting ${crawl}`);
-const preparation = await callIngest({ operation: "prepare", crawl });
+const preparation = await callIngest({ operation: "prepare", crawl, replaceToday });
 if (preparation.skipped) {
   console.log(JSON.stringify(preparation));
   process.exit(0);
 }
 
-const item = await getFeedItem(source, new Set(preparation.usedUrls || []));
-const draft = await generateLearningArticle(source, item);
-item.imageUrl = await findArticleImage(item, draft);
-const result = await callIngest({ operation: "ingest", crawl, item, draft });
+const item = preparation.item || await getFeedItem(source, new Set(preparation.usedUrls || []));
+const document = await fetchSourceDocument(item);
+item.summary = item.summary === "Existing article refresh" ? document.text.slice(0, 500) : item.summary;
+const draft = await generateLearningArticle(source, item, document);
+item.imageUrl = await findArticleImage(item, draft, document);
+const result = await callIngest({ operation: replaceToday ? "replace" : "ingest", crawl, item, draft, articleId: preparation.articleId });
 console.log(JSON.stringify(result));

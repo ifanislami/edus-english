@@ -26,7 +26,7 @@ const crawlSources: Record<string, CrawlSource> = {
     name: "ScienceAlert",
     level: "2",
     feed:
-      "https://www.sciencealert.com/?format=feed&id=1%3Athe-latest&option=com_obrss&task=feed",
+      "https://www.sciencealert.com/feed/",
   },
   "republika-l2": {
     name: "Republika",
@@ -37,7 +37,7 @@ const crawlSources: Record<string, CrawlSource> = {
     name: "ScienceAlert",
     level: "1",
     feed:
-      "https://www.sciencealert.com/?format=feed&id=1%3Athe-latest&option=com_obrss&task=feed",
+      "https://www.sciencealert.com/feed/",
   },
   "dw-l2": {
     name: "DW Indonesia",

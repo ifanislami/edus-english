@@ -1,6 +1,14 @@
+import { Agent } from "undici";
+
 const INGEST_URL = required("SUPABASE_INGEST_URL");
 const CRAWLER_KEY = required("CRAWLER_KEY");
 const QWEN_API_KEY = required("QWEN_API_KEY");
+const QWEN_TIMEOUT_MS = 7 * 60_000;
+const qwenAgent = new Agent({
+  headersTimeout: QWEN_TIMEOUT_MS,
+  bodyTimeout: QWEN_TIMEOUT_MS,
+  connectTimeout: 30_000,
+});
 
 const sources = {
   "republika-l1": {
@@ -201,26 +209,39 @@ async function generateLearningArticle(source, item) {
   ];
   let lastError;
   for (let attempt = 1; attempt <= 2; attempt += 1) {
-    const response = await fetchWithTimeout(
-      process.env.QWEN_BASE_URL ||
-        "https://dashscope-intl.aliyuncs.com/compatible-mode/v1/chat/completions",
-      {
-        method: "POST",
-        headers: {
-          authorization: `Bearer ${QWEN_API_KEY}`,
-          "content-type": "application/json",
+    let response;
+    try {
+      response = await fetchWithTimeout(
+        process.env.QWEN_BASE_URL ||
+          "https://dashscope-intl.aliyuncs.com/compatible-mode/v1/chat/completions",
+        {
+          method: "POST",
+          headers: {
+            authorization: `Bearer ${QWEN_API_KEY}`,
+            "content-type": "application/json",
+          },
+          body: JSON.stringify({
+            model: process.env.QWEN_MODEL || "qwen3.8-max",
+            temperature: 0.2,
+            response_format: { type: "json_object" },
+            messages,
+          }),
+          dispatcher: qwenAgent,
         },
-        body: JSON.stringify({
-          model: process.env.QWEN_MODEL || "qwen3.8-max",
-          temperature: 0.2,
-          response_format: { type: "json_object" },
-          messages,
-        }),
-      },
-      10 * 60_000,
-    );
+        QWEN_TIMEOUT_MS,
+      );
+    } catch (error) {
+      lastError = error;
+      if (attempt === 2) break;
+      console.warn(`Qwen request failed; retrying once: ${error.message}`);
+      continue;
+    }
     if (!response.ok) {
-      throw new Error(`Qwen generation failed: ${response.status} ${await response.text()}`);
+      const error = new Error(`Qwen generation failed: ${response.status} ${await response.text()}`);
+      if (attempt === 2 || (response.status !== 429 && response.status < 500)) throw error;
+      lastError = error;
+      console.warn(`Qwen returned ${response.status}; retrying once`);
+      continue;
     }
     const content = (await response.json()).choices?.[0]?.message?.content;
     if (!content) throw new Error("Qwen returned empty content");
